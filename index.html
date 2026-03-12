@@ -1926,6 +1926,9 @@
       var deltaY = e.clientY - this.startY;
       var daysDelta = Math.round(deltaX / GanttView.cellWidth * this._daysPerCell());
 
+      // Convert days delta to pixel delta for ghost sizing (syncs ghost with tooltip date)
+      var pixelDelta = daysDelta * GanttView.cellWidth / this._daysPerCell();
+
       // Update ghost position/width
       if (this._ghost) {
         if (this.dragType === 'milestone') {
@@ -1937,16 +1940,16 @@
           this._ghost.style.top = (e.clientY - this._ghostOffsetY) + 'px';
         } else if (this.dragType === 'resize-left') {
           // Resize left: keep right edge fixed, adjust left and width
-          var newWidth = this._ghostOriginalWidth - deltaX;
+          var newWidth = this._ghostOriginalWidth - pixelDelta;
           if (newWidth >= 20) {
-            this._ghost.style.left = (this._ghostFixedLeft + deltaX) + 'px';
+            this._ghost.style.left = (this._ghostFixedLeft + pixelDelta) + 'px';
             this._ghost.style.width = newWidth + 'px';
             var bar = this._ghost.querySelector('.drag-ghost-bar');
             if (bar) bar.style.width = newWidth + 'px';
           }
         } else if (this.dragType === 'resize-right') {
           // Resize right: keep left edge fixed, adjust width
-          var newWidth = this._ghostOriginalWidth + deltaX;
+          var newWidth = this._ghostOriginalWidth + pixelDelta;
           if (newWidth >= 20) {
             this._ghost.style.width = newWidth + 'px';
             var bar = this._ghost.querySelector('.drag-ghost-bar');
