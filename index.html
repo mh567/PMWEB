@@ -379,6 +379,9 @@
       font-size: 10px;
       color: #888;
     }
+    .gantt-header-cell.weekend {
+      color: #e74c3c;
+    }
     .gantt-header-cell.weekend .weekday {
       color: #e74c3c;
     }
@@ -1321,6 +1324,9 @@
           if (depth < 2) {
             items.push({ label: '添加子任务', action: function() { App.showAddTask(taskId); } });
           }
+          items.push({ label: '标记为待办', action: function() { TaskManager.updateTask(taskId, { status: 'todo' }); self.render(); App.renderAll(); } });
+          items.push({ label: '标记为进行中', action: function() { TaskManager.updateTask(taskId, { status: 'inProgress' }); self.render(); App.renderAll(); } });
+          items.push({ label: '标记为已完成', action: function() { TaskManager.updateTask(taskId, { status: 'done' }); self.render(); App.renderAll(); } });
           items.push({ label: '编辑任务', action: function() { App.showEditTask(taskId); } });
           items.push({ label: '设置颜色', action: function() { App.showColorPicker(taskId); } });
           items.push({ label: '删除任务', action: function() { App.deleteTask(taskId); }, danger: true });
