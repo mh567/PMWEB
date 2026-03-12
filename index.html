@@ -1973,6 +1973,15 @@
         return ghostX - ganttRect.left + ganttBody.scrollLeft;
       };
 
+      // Helper to calculate date from ghost right edge (for resize-right)
+      var ghostRightToDate = function() {
+        if (!self._ghost) return null;
+        var ghostRight = parseFloat(self._ghost.style.left) + parseFloat(self._ghost.style.width);
+        var ganttX = ghostToGanttX(ghostRight);
+        // Use GanttView's _xToDate for consistent calculation
+        return GanttView._xToDate(ganttX);
+      };
+
       if (this.dragType === 'move') {
         // Detect vertical drag intent for row merge
         if (Math.abs(deltaY) > 18) {
@@ -2019,8 +2028,11 @@
       } else if (this.dragType === 'resize-right') {
         var newEnd = this._addDays(this.originalEndDate, daysDelta);
         if (newEnd <= this.originalStartDate) return;
-        this.tooltip.textContent = '结束: ' + this.originalEndDate + ' → ' + newEnd;
-        this.dragTarget._tempEnd = newEnd;
+        // Use ghost position to calculate displayed date (syncs with snap line)
+        var displayEnd = this._ghostValid ? ghostRightToDate() : newEnd;
+        if (!displayEnd) displayEnd = newEnd;
+        this.tooltip.textContent = '结束: ' + this.originalEndDate + ' → ' + displayEnd;
+        this.dragTarget._tempEnd = displayEnd;
         // Snap line at ghost right edge (only if ghost was updated)
         if (this._ghostValid) {
           var ghostRight = parseFloat(this._ghost.style.left) + parseFloat(this._ghost.style.width);
