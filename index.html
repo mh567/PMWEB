@@ -1887,7 +1887,7 @@
       this._ghost = ghost;
     },
 
-    _updateSnapLine: function(dateStr) {
+    _updateSnapLine: function(dateStr, isEndDate) {
       // Remove existing snap line
       if (this._snapLine && this._snapLine.parentNode) {
         this._snapLine.parentNode.removeChild(this._snapLine);
@@ -1898,6 +1898,12 @@
 
       var x = GanttView._dateToX(dateStr);
       if (x <= 0) return;
+
+      // For end date, snap line should align to right edge of the date cell
+      if (isEndDate) {
+        var oneDayWidth = GanttView.cellWidth * this._daysPerCell();
+        x += oneDayWidth;
+      }
 
       var line = document.createElement('div');
       line.className = 'snap-line';
@@ -1999,7 +2005,7 @@
         if (newEnd <= this.originalStartDate) return;
         this.tooltip.textContent = '结束: ' + this.originalEndDate + ' → ' + newEnd;
         this.dragTarget._tempEnd = newEnd;
-        this._updateSnapLine(newEnd);
+        this._updateSnapLine(newEnd, true);
       } else if (this.dragType === 'milestone') {
         var newDate = this._addDays(this.originalDate, daysDelta);
         this.tooltip.textContent = newDate;
