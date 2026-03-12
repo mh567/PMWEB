@@ -1,0 +1,1203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PMWEB - 项目管理</title>
+  <style>
+    :root {
+      --color-bg: #f5f6fa;
+      --color-surface: #ffffff;
+      --color-border: #e0e0e0;
+      --color-primary: #4a90d9;
+      --color-primary-hover: #357abd;
+      --color-text: #333333;
+      --color-text-light: #888888;
+      --color-danger: #e74c3c;
+      --sidebar-width: 260px;
+      --toolbar-height: 48px;
+      --statusbar-height: 28px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, "Microsoft YaHei", "PingFang SC", "Helvetica Neue", sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ===== TOOLBAR ===== */
+    #toolbar {
+      height: var(--toolbar-height);
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 8px;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    #toolbar .toolbar-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--color-text);
+      margin-right: 8px;
+    }
+
+    #toolbar .toolbar-sep {
+      width: 1px;
+      height: 20px;
+      background: var(--color-border);
+      margin: 0 4px;
+    }
+
+    .btn {
+      padding: 6px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      background: var(--color-surface);
+      color: var(--color-text);
+      cursor: pointer;
+      font-size: 13px;
+      font-family: inherit;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: var(--color-bg);
+      border-color: var(--color-primary);
+    }
+
+    .btn.active {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+      color: #ffffff;
+    }
+
+    .btn.btn-primary {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+      color: #ffffff;
+    }
+
+    .btn.btn-primary:hover {
+      background: var(--color-primary-hover);
+      border-color: var(--color-primary-hover);
+    }
+
+    .btn.btn-danger {
+      background: var(--color-danger);
+      border-color: var(--color-danger);
+      color: #ffffff;
+    }
+
+    .btn.btn-danger:hover {
+      background: #c0392b;
+      border-color: #c0392b;
+    }
+
+    #toolbar .btn-group {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    #toolbar .spacer {
+      flex: 1;
+    }
+
+    /* ===== MAIN CONTAINER ===== */
+    #main-container {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      overflow: hidden;
+    }
+
+    /* ===== SIDEBAR ===== */
+    #sidebar {
+      width: var(--sidebar-width);
+      flex-shrink: 0;
+      background: var(--color-surface);
+      border-right: 1px solid var(--color-border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    #sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--color-border);
+      flex-shrink: 0;
+    }
+
+    #sidebar-header h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+
+    #btn-add-project {
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      color: var(--color-primary);
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: inherit;
+      transition: background 0.15s;
+    }
+
+    #btn-add-project:hover {
+      background: var(--color-primary);
+      color: #ffffff;
+      border-color: var(--color-primary);
+    }
+
+    #tree-container {
+      flex: 1;
+      padding: 8px 0;
+    }
+
+    .project-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 14px;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: background 0.1s;
+      gap: 8px;
+    }
+
+    .project-item:hover {
+      background: var(--color-bg);
+    }
+
+    .project-item.active {
+      background: #eaf2fb;
+      border-left-color: var(--color-primary);
+    }
+
+    .project-color-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .project-name {
+      flex: 1;
+      font-size: 13px;
+      color: var(--color-text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .project-actions {
+      display: none;
+      gap: 4px;
+    }
+
+    .project-item:hover .project-actions {
+      display: flex;
+    }
+
+    .project-action-btn {
+      width: 20px;
+      height: 20px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--color-text-light);
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: inherit;
+    }
+
+    .project-action-btn:hover {
+      background: var(--color-border);
+      color: var(--color-text);
+    }
+
+    #sidebar-empty {
+      padding: 24px 14px;
+      text-align: center;
+      color: var(--color-text-light);
+      font-size: 13px;
+    }
+
+    /* ===== CONTENT AREA ===== */
+    #content-area {
+      flex: 1;
+      overflow: auto;
+      position: relative;
+      background: var(--color-bg);
+    }
+
+    #content-placeholder {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--color-text-light);
+      font-size: 14px;
+    }
+
+    /* ===== STATUS BAR ===== */
+    #status-bar {
+      height: var(--statusbar-height);
+      background: var(--color-surface);
+      border-top: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 16px;
+      flex-shrink: 0;
+      font-size: 12px;
+      color: var(--color-text-light);
+    }
+
+    #status-bar .status-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* == 模态框 == */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.4);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: #fff;
+      border-radius: 8px;
+      padding: 24px;
+      min-width: 360px;
+      max-width: 500px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+    }
+    .modal-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .modal-field {
+      margin-bottom: 12px;
+    }
+    .modal-field label {
+      display: block;
+      font-size: 13px;
+      color: var(--color-text-light);
+      margin-bottom: 4px;
+    }
+    .modal-field input,
+    .modal-field select {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 20px;
+    }
+    .modal-actions button {
+      padding: 8px 16px;
+      border-radius: 4px;
+      border: 1px solid var(--color-border);
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .modal-actions .btn-primary {
+      background: var(--color-primary);
+      color: #fff;
+      border-color: var(--color-primary);
+    }
+    .modal-actions .btn-primary:hover { background: var(--color-primary-hover); }
+    .modal-actions .btn-danger {
+      background: var(--color-danger);
+      color: #fff;
+      border-color: var(--color-danger);
+    }
+
+    /* == 树形列表 == */
+    .tree-project {
+      border-bottom: 1px solid var(--color-border);
+    }
+    .tree-project-header {
+      display: flex;
+      align-items: center;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      gap: 6px;
+    }
+    .tree-project-header:hover { background: #f5f5f5; }
+    .tree-project-header .arrow {
+      font-size: 10px;
+      transition: transform 0.15s;
+      color: var(--color-text-light);
+    }
+    .tree-project-header .arrow.collapsed { transform: rotate(-90deg); }
+    .tree-project-header .color-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .tree-project-tasks {
+      overflow: hidden;
+    }
+    .tree-project-tasks.collapsed {
+      display: none;
+    }
+    .tree-task {
+      display: flex;
+      align-items: center;
+      padding: 6px 16px 6px 36px;
+      cursor: pointer;
+      font-size: 13px;
+      gap: 6px;
+    }
+    .tree-task:hover { background: #f0f4ff; }
+    .tree-task.selected { background: #e3ecfa; }
+    .tree-task .status-icon {
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+    .tree-task .task-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tree-milestone-list {
+      padding-left: 48px;
+    }
+    .tree-milestone {
+      display: flex;
+      align-items: center;
+      padding: 3px 16px 3px 0;
+      font-size: 12px;
+      color: var(--color-text-light);
+      gap: 4px;
+      cursor: pointer;
+    }
+    .tree-milestone:hover { color: var(--color-text); }
+
+    /* == 右键菜单 == */
+    .context-menu {
+      display: none;
+      position: fixed;
+      background: #fff;
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+      z-index: 2000;
+      min-width: 140px;
+      padding: 4px 0;
+    }
+    .context-menu.active { display: block; }
+    .context-menu-item {
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .context-menu-item:hover { background: #f0f4ff; }
+    .context-menu-item.danger { color: var(--color-danger); }
+  </style>
+</head>
+<body>
+
+  <!-- TOOLBAR -->
+  <div id="toolbar">
+    <span class="toolbar-title">PMWEB</span>
+    <div class="toolbar-sep"></div>
+    <button class="btn" id="btn-project-manager">项目管理</button>
+    <button class="btn" id="btn-import">导入</button>
+    <button class="btn" id="btn-export">导出</button>
+    <div class="toolbar-sep"></div>
+    <div class="btn-group" id="view-toggle-group">
+      <button class="btn active" id="btn-view-gantt" data-view="gantt">甘特图</button>
+      <button class="btn" id="btn-view-calendar" data-view="calendar">日历</button>
+    </div>
+    <div class="toolbar-sep"></div>
+    <div class="btn-group" id="granularity-group">
+      <button class="btn" id="btn-gran-year" data-gran="year">年</button>
+      <button class="btn active" id="btn-gran-month" data-gran="month">月</button>
+      <button class="btn" id="btn-gran-week" data-gran="week">周</button>
+    </div>
+    <div class="spacer"></div>
+  </div>
+
+  <!-- MAIN CONTAINER -->
+  <div id="main-container">
+
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+      <div id="sidebar-header">
+        <h2>任务列表</h2>
+        <button id="btn-add-project" title="新建项目">+</button>
+      </div>
+      <div id="tree-container">
+        <div id="sidebar-empty">暂无项目，点击 + 新建</div>
+      </div>
+    </div>
+
+    <!-- CONTENT AREA -->
+    <div id="content-area">
+      <div id="content-placeholder">请选择或新建项目</div>
+    </div>
+
+  </div>
+
+  <!-- STATUS BAR -->
+  <div id="status-bar">
+    <span class="status-item" id="status-project">项目：-</span>
+    <span class="status-item" id="status-tasks">任务：0</span>
+    <span class="status-item" id="status-milestones">里程碑：0</span>
+    <span class="spacer" style="flex:1"></span>
+    <span class="status-item" id="status-info">PMWEB v1.0</span>
+  </div>
+
+  <!-- MODAL OVERLAY -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal-box" id="modal-box"></div>
+  </div>
+
+  <!-- Hidden file input for import -->
+  <input type="file" id="import-file-input" accept=".json" style="display:none">
+
+  <script>
+  // ============================================================
+  // DataStore — localStorage persistence + JSON import/export
+  // ============================================================
+  const DataStore = {
+    STORAGE_KEY: 'pmweb_data',
+
+    createEmpty() {
+      return {
+        version: 1,
+        projects: [],
+        tasks: [],
+        milestones: [],
+        settings: { lastView: 'gantt', lastGranularity: 'month' }
+      };
+    },
+
+    load() {
+      try {
+        const raw = localStorage.getItem(this.STORAGE_KEY);
+        if (!raw) return this.createEmpty();
+        const data = JSON.parse(raw);
+        if (!data.version || !Array.isArray(data.projects)) return this.createEmpty();
+        return data;
+      } catch (e) {
+        console.error('DataStore.load failed:', e);
+        return this.createEmpty();
+      }
+    },
+
+    save(data) {
+      try {
+        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.error('DataStore.save failed:', e);
+        alert('数据保存失败，可能 localStorage 已满');
+      }
+    },
+
+    exportJSON(data) {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'pmweb-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    },
+
+    importJSON(file) {
+      return new Promise(function(resolve, reject) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const data = JSON.parse(e.target.result);
+            if (!data.version || !Array.isArray(data.projects) ||
+                !Array.isArray(data.tasks) || !Array.isArray(data.milestones)) {
+              reject(new Error('JSON 格式不正确：缺少必要字段'));
+              return;
+            }
+            resolve(data);
+          } catch (err) {
+            reject(new Error('JSON 解析失败：文件内容无效'));
+          }
+        };
+        reader.onerror = function() { reject(new Error('文件读取失败')); };
+        reader.readAsText(file);
+      });
+    },
+
+    // Use this instead of toISOString().slice(0,10) to avoid UTC timezone bugs
+    formatDate(d) {
+      return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
+    },
+
+    uuid() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
+    }
+  };
+
+  // ============================================================
+  // ProjectManager — CRUD with validation
+  // ============================================================
+  const ProjectManager = {
+    COLORS: [
+      '#4a90d9', '#e67e22', '#2ecc71', '#9b59b6', '#e74c3c',
+      '#1abc9c', '#f39c12', '#3498db', '#e91e63', '#00bcd4',
+      '#8bc34a', '#ff5722'
+    ],
+
+    data: null,
+
+    init() {
+      this.data = DataStore.load();
+      // Ensure arrays/settings exist for older stored formats
+      if (!Array.isArray(this.data.tasks)) this.data.tasks = [];
+      if (!Array.isArray(this.data.milestones)) this.data.milestones = [];
+      if (!this.data.settings) this.data.settings = { lastView: 'gantt', lastGranularity: 'month' };
+    },
+
+    _save() {
+      DataStore.save(this.data);
+    },
+
+    // ---- Projects ----
+
+    getProjects() {
+      return this.data.projects.slice().sort(function(a, b) {
+        return (a.order || 0) - (b.order || 0);
+      });
+    },
+
+    addProject(name) {
+      const existingCount = this.data.projects.length;
+      const color = this.COLORS[existingCount % this.COLORS.length];
+      const project = {
+        id: DataStore.uuid(),
+        name: name,
+        color: color,
+        order: existingCount,
+        createdAt: DataStore.formatDate(new Date())
+      };
+      this.data.projects.push(project);
+      this._save();
+      return project;
+    },
+
+    updateProject(id, updates) {
+      const project = this.data.projects.find(function(p) { return p.id === id; });
+      if (!project) return null;
+      if (updates.name !== undefined) project.name = updates.name;
+      if (updates.color !== undefined) project.color = updates.color;
+      if (updates.order !== undefined) project.order = updates.order;
+      this._save();
+      return project;
+    },
+
+    deleteProject(id) {
+      // Cascade: find all tasks belonging to this project
+      const taskIds = this.data.tasks
+        .filter(function(t) { return t.projectId === id; })
+        .map(function(t) { return t.id; });
+
+      // Remove milestones that belong to tasks of this project OR to the project directly
+      this.data.milestones = this.data.milestones.filter(function(m) {
+        if (m.projectId === id) return false;
+        if (m.taskId && taskIds.indexOf(m.taskId) !== -1) return false;
+        return true;
+      });
+
+      // Remove tasks
+      this.data.tasks = this.data.tasks.filter(function(t) { return t.projectId !== id; });
+
+      // Remove project
+      this.data.projects = this.data.projects.filter(function(p) { return p.id !== id; });
+
+      this._save();
+    },
+
+    // ---- Tasks ----
+
+    getTasksByProject(projectId) {
+      return this.data.tasks
+        .filter(function(t) { return t.projectId === projectId; })
+        .slice()
+        .sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+    },
+
+    getAllTasks() {
+      return this.data.tasks.slice();
+    },
+
+    addTask(projectId, name, startDate, endDate) {
+      if (endDate < startDate) {
+        alert('结束日期不能早于开始日期');
+        return null;
+      }
+      const existingCount = this.data.tasks.filter(function(t) { return t.projectId === projectId; }).length;
+      const task = {
+        id: DataStore.uuid(),
+        projectId: projectId,
+        name: name,
+        startDate: startDate,
+        endDate: endDate,
+        description: '',
+        assignee: '',
+        status: 'todo',
+        order: existingCount,
+        createdAt: DataStore.formatDate(new Date())
+      };
+      this.data.tasks.push(task);
+      this._save();
+      return task;
+    },
+
+    updateTask(id, updates) {
+      const task = this.data.tasks.find(function(t) { return t.id === id; });
+      if (!task) return null;
+
+      const newStart = updates.startDate !== undefined ? updates.startDate : task.startDate;
+      const newEnd = updates.endDate !== undefined ? updates.endDate : task.endDate;
+
+      if (newEnd < newStart) {
+        alert('结束日期不能早于开始日期');
+        return null;
+      }
+
+      var allowed = ['name', 'description', 'assignee', 'startDate', 'endDate', 'status', 'order'];
+      for (var i = 0; i < allowed.length; i++) {
+        var key = allowed[i];
+        if (updates[key] !== undefined) task[key] = updates[key];
+      }
+      this._save();
+      return task;
+    },
+
+    deleteTask(id) {
+      // Remove milestones belonging to this task
+      this.data.milestones = this.data.milestones.filter(function(m) { return m.taskId !== id; });
+      // Remove task
+      this.data.tasks = this.data.tasks.filter(function(t) { return t.id !== id; });
+      this._save();
+    },
+
+    // ---- Milestones ----
+
+    getMilestonesByTask(taskId) {
+      return this.data.milestones
+        .filter(function(m) { return m.taskId === taskId; })
+        .slice()
+        .sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    },
+
+    getMilestonesByProject(projectId) {
+      // Project-level only: no taskId
+      return this.data.milestones
+        .filter(function(m) { return m.projectId === projectId && !m.taskId; })
+        .slice()
+        .sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+    },
+
+    getAllMilestones() {
+      return this.data.milestones.slice();
+    },
+
+    addMilestone(name, date, icon, context) {
+      // context: { taskId, projectId } — one must be non-null
+      var taskId = context.taskId || null;
+      var projectId = context.projectId || null;
+
+      if (taskId) {
+        // Validate date within task range
+        const task = this.data.tasks.find(function(t) { return t.id === taskId; });
+        if (task) {
+          if (date < task.startDate || date > task.endDate) {
+            alert('里程碑日期必须在任务日期范围内（' + task.startDate + ' 至 ' + task.endDate + '）');
+            return null;
+          }
+        }
+        projectId = null; // mutually exclusive
+      } else {
+        taskId = null;
+      }
+
+      const milestone = {
+        id: DataStore.uuid(),
+        name: name,
+        date: date,
+        icon: icon || '◆',
+        taskId: taskId,
+        projectId: projectId,
+        createdAt: DataStore.formatDate(new Date())
+      };
+      this.data.milestones.push(milestone);
+      this._save();
+      return milestone;
+    },
+
+    updateMilestone(id, updates) {
+      const milestone = this.data.milestones.find(function(m) { return m.id === id; });
+      if (!milestone) return null;
+
+      const newDate = updates.date !== undefined ? updates.date : milestone.date;
+
+      // If task-level, validate date range
+      if (milestone.taskId) {
+        const task = this.data.tasks.find(function(t) { return t.id === milestone.taskId; });
+        if (task) {
+          if (newDate < task.startDate || newDate > task.endDate) {
+            alert('里程碑日期必须在任务日期范围内（' + task.startDate + ' 至 ' + task.endDate + '）');
+            return null;
+          }
+        }
+      }
+
+      var allowed = ['name', 'date', 'icon'];
+      for (var i = 0; i < allowed.length; i++) {
+        var key = allowed[i];
+        if (updates[key] !== undefined) milestone[key] = updates[key];
+      }
+      this._save();
+      return milestone;
+    },
+
+    deleteMilestone(id) {
+      this.data.milestones = this.data.milestones.filter(function(m) { return m.id !== id; });
+      this._save();
+    },
+
+    // ---- Settings ----
+
+    getSetting(key) {
+      return this.data.settings[key];
+    },
+
+    setSetting(key, value) {
+      this.data.settings[key] = value;
+      this._save();
+    },
+
+    // ---- Import ----
+
+    replaceData(newData) {
+      this.data = newData;
+      this._save();
+    }
+  };
+
+  // ============================================================
+  // == ModalManager
+  // ============================================================
+  const ModalManager = {
+    overlay: null,
+    content: null,
+
+    init() {
+      this.overlay = document.getElementById('modal-overlay');
+      this.content = document.getElementById('modal-box');
+      this.overlay.addEventListener('click', (e) => {
+        if (e.target === this.overlay) this.close();
+      });
+    },
+
+    open(html) {
+      this.content.innerHTML = html;
+      this.overlay.classList.add('active');
+    },
+
+    close() {
+      this.overlay.classList.remove('active');
+      this.content.innerHTML = '';
+    },
+
+    confirm(message, onConfirm) {
+      this.open(
+        '<div class="modal-title">确认</div>'
+        + '<p style="margin-bottom:16px;font-size:14px;">' + message + '</p>'
+        + '<div class="modal-actions">'
+        + '<button onclick="ModalManager.close()">取消</button>'
+        + '<button class="btn-danger" id="modal-confirm-btn">确定</button>'
+        + '</div>'
+      );
+      document.getElementById('modal-confirm-btn').addEventListener('click', function() {
+        ModalManager.close();
+        onConfirm();
+      });
+    },
+
+    showProjectForm(project, onSave) {
+      var isEdit = !!project;
+      var title = isEdit ? '编辑项目' : '新建项目';
+      var name = isEdit ? project.name : '';
+      var color = isEdit ? project.color : ProjectManager.COLORS[ProjectManager.data.projects.length % ProjectManager.COLORS.length];
+
+      var swatchesHtml = ProjectManager.COLORS.map(function(c) {
+        return '<span class="color-swatch' + (c === color ? ' selected' : '') + '" data-color="' + c + '" style="display:inline-block;width:24px;height:24px;border-radius:50%;cursor:pointer;margin:2px;border:2px solid ' + (c === color ? '#333' : 'transparent') + ';background:' + c + '"></span>';
+      }).join('');
+
+      this.open(
+        '<div class="modal-title">' + title + '</div>'
+        + '<div class="modal-field"><label>项目名称</label>'
+        + '<input type="text" id="modal-project-name" value="' + _escapeHtml(name) + '" placeholder="请输入项目名称"></div>'
+        + '<div class="modal-field"><label>项目颜色</label>'
+        + '<div id="modal-color-picker">' + swatchesHtml + '</div></div>'
+        + '<div class="modal-actions">'
+        + '<button onclick="ModalManager.close()">取消</button>'
+        + '<button class="btn-primary" id="modal-save-btn">保存</button>'
+        + '</div>'
+      );
+
+      var pickedColor = color;
+      document.querySelectorAll('#modal-color-picker .color-swatch').forEach(function(sw) {
+        sw.addEventListener('click', function() {
+          document.querySelectorAll('#modal-color-picker .color-swatch').forEach(function(s) {
+            s.style.borderColor = 'transparent';
+            s.classList.remove('selected');
+          });
+          sw.style.borderColor = '#333';
+          sw.classList.add('selected');
+          pickedColor = sw.dataset.color;
+        });
+      });
+
+      document.getElementById('modal-save-btn').addEventListener('click', function() {
+        var nameVal = document.getElementById('modal-project-name').value.trim();
+        if (!nameVal) { alert('请输入项目名称'); return; }
+        ModalManager.close();
+        onSave({ name: nameVal, color: pickedColor });
+      });
+
+      document.getElementById('modal-project-name').focus();
+    },
+
+    showTaskForm(task, projectId, onSave) {
+      var isEdit = !!task;
+      var title = isEdit ? '编辑任务' : '新建任务';
+      var name = isEdit ? task.name : '';
+      var description = isEdit ? (task.description || '') : '';
+      var assignee = isEdit ? (task.assignee || '') : '';
+      var startDate = isEdit ? task.startDate : DataStore.formatDate(new Date());
+      var endDate = isEdit ? task.endDate : DataStore.formatDate(new Date(Date.now() + 7 * 86400000));
+      var status = isEdit ? task.status : 'todo';
+
+      this.open(
+        '<div class="modal-title">' + title + '</div>'
+        + '<div class="modal-field"><label>任务名称</label>'
+        + '<input type="text" id="modal-task-name" value="' + _escapeHtml(name) + '" placeholder="请输入任务名称"></div>'
+        + '<div class="modal-field"><label>负责人</label>'
+        + '<input type="text" id="modal-task-assignee" value="' + _escapeHtml(assignee) + '" placeholder="请输入负责人（可选）"></div>'
+        + '<div class="modal-field"><label>描述/备注</label>'
+        + '<textarea id="modal-task-desc" rows="3" style="width:100%;padding:8px 10px;border:1px solid var(--color-border);border-radius:4px;font-size:14px;resize:vertical;" placeholder="请输入描述（可选）">' + _escapeHtml(description) + '</textarea></div>'
+        + '<div class="modal-field"><label>开始日期</label>'
+        + '<input type="date" id="modal-task-start" value="' + startDate + '"></div>'
+        + '<div class="modal-field"><label>结束日期</label>'
+        + '<input type="date" id="modal-task-end" value="' + endDate + '"></div>'
+        + '<div class="modal-field"><label>状态</label>'
+        + '<select id="modal-task-status">'
+        + '<option value="todo"' + (status === 'todo' ? ' selected' : '') + '>待办</option>'
+        + '<option value="inProgress"' + (status === 'inProgress' ? ' selected' : '') + '>进行中</option>'
+        + '<option value="done"' + (status === 'done' ? ' selected' : '') + '>已完成</option>'
+        + '</select></div>'
+        + '<div class="modal-actions">'
+        + '<button onclick="ModalManager.close()">取消</button>'
+        + '<button class="btn-primary" id="modal-save-btn">保存</button>'
+        + '</div>'
+      );
+
+      document.getElementById('modal-save-btn').addEventListener('click', function() {
+        var nameVal = document.getElementById('modal-task-name').value.trim();
+        var descVal = document.getElementById('modal-task-desc').value;
+        var assigneeVal = document.getElementById('modal-task-assignee').value.trim();
+        var startVal = document.getElementById('modal-task-start').value;
+        var endVal = document.getElementById('modal-task-end').value;
+        var statusVal = document.getElementById('modal-task-status').value;
+        if (!nameVal) { alert('请输入任务名称'); return; }
+        if (!startVal || !endVal) { alert('请选择日期'); return; }
+        ModalManager.close();
+        onSave({ name: nameVal, description: descVal, assignee: assigneeVal, startDate: startVal, endDate: endVal, status: statusVal, projectId: projectId });
+      });
+
+      document.getElementById('modal-task-name').focus();
+    },
+
+    showMilestoneForm(milestone, parentInfo, onSave) {
+      var isEdit = !!milestone;
+      var title = isEdit ? '编辑里程碑' : '新建里程碑';
+      var name = isEdit ? milestone.name : '';
+      var date = isEdit ? milestone.date : DataStore.formatDate(new Date());
+      var icon = isEdit ? milestone.icon : '◆';
+
+      this.open(
+        '<div class="modal-title">' + title + '</div>'
+        + '<div class="modal-field"><label>里程碑名称</label>'
+        + '<input type="text" id="modal-ms-name" value="' + _escapeHtml(name) + '" placeholder="请输入名称"></div>'
+        + '<div class="modal-field"><label>日期</label>'
+        + '<input type="date" id="modal-ms-date" value="' + date + '"></div>'
+        + '<div class="modal-field"><label>图标</label>'
+        + '<select id="modal-ms-icon">'
+        + '<option value="◆"' + (icon === '◆' ? ' selected' : '') + '>◆ 菱形</option>'
+        + '<option value="★"' + (icon === '★' ? ' selected' : '') + '>★ 星形</option>'
+        + '<option value="●"' + (icon === '●' ? ' selected' : '') + '>● 圆形</option>'
+        + '<option value="▲"' + (icon === '▲' ? ' selected' : '') + '>▲ 三角</option>'
+        + '</select></div>'
+        + '<div class="modal-actions">'
+        + '<button onclick="ModalManager.close()">取消</button>'
+        + '<button class="btn-primary" id="modal-save-btn">保存</button>'
+        + '</div>'
+      );
+
+      document.getElementById('modal-save-btn').addEventListener('click', function() {
+        var nameVal = document.getElementById('modal-ms-name').value.trim();
+        var dateVal = document.getElementById('modal-ms-date').value;
+        var iconVal = document.getElementById('modal-ms-icon').value;
+        if (!nameVal) { alert('请输入名称'); return; }
+        if (!dateVal) { alert('请选择日期'); return; }
+        ModalManager.close();
+        onSave({ name: nameVal, date: dateVal, icon: iconVal, taskId: parentInfo.taskId, projectId: parentInfo.projectId });
+      });
+
+      document.getElementById('modal-ms-name').focus();
+    }
+  };
+
+  // ============================================================
+  // == TreeView
+  // ============================================================
+  const TreeView = {
+    container: null,
+    contextMenu: null,
+    collapsedProjects: new Set(),
+    selectedTaskId: null,
+
+    init() {
+      this.container = document.getElementById('tree-container');
+      this.contextMenu = document.getElementById('context-menu');
+      document.addEventListener('click', () => this.hideContextMenu());
+    },
+
+    render() {
+      var projects = ProjectManager.getProjects();
+      if (projects.length === 0) {
+        this.container.innerHTML = '<div style="padding:24px 16px;color:var(--color-text-light);font-size:13px;text-align:center;">暂无项目<br>点击「项目管理」创建</div>';
+        return;
+      }
+
+      var self = this;
+      var html = '';
+      projects.forEach(function(project) {
+        var tasks = ProjectManager.getTasksByProject(project.id);
+        var isCollapsed = self.collapsedProjects.has(project.id);
+        var projectMilestones = ProjectManager.getMilestonesByProject(project.id);
+
+        html += '<div class="tree-project" data-project-id="' + project.id + '">';
+        html += '<div class="tree-project-header" data-project-id="' + project.id + '">';
+        html += '<span class="arrow ' + (isCollapsed ? 'collapsed' : '') + '">▼</span>';
+        html += '<span class="color-dot" style="background:' + project.color + '"></span>';
+        html += '<span style="flex:1">' + _escapeHtml(project.name) + '</span>';
+        html += '</div>';
+
+        html += '<div class="tree-project-tasks ' + (isCollapsed ? 'collapsed' : '') + '">';
+
+        // Project-level milestones
+        projectMilestones.forEach(function(ms) {
+          html += '<div class="tree-milestone" data-milestone-id="' + ms.id + '" data-project-id="' + project.id + '">';
+          html += '<span>' + ms.icon + '</span>';
+          html += '<span>' + _escapeHtml(ms.name) + '</span>';
+          html += '<span style="margin-left:auto;font-size:11px;">' + ms.date.slice(5) + '</span>';
+          html += '</div>';
+        });
+
+        tasks.forEach(function(task) {
+          var statusIcon = task.status === 'done' ? '✓' : task.status === 'inProgress' ? '►' : '○';
+          var statusColor = task.status === 'done' ? '#2ecc71' : task.status === 'inProgress' ? '#f39c12' : '#ccc';
+          var selected = self.selectedTaskId === task.id ? ' selected' : '';
+
+          html += '<div class="tree-task' + selected + '" data-task-id="' + task.id + '" data-project-id="' + project.id + '">';
+          html += '<span class="status-icon" style="color:' + statusColor + '">' + statusIcon + '</span>';
+          html += '<span class="task-name">' + _escapeHtml(task.name) + '</span>';
+          if (task.assignee) html += '<span style="font-size:11px;color:var(--color-text-light);flex-shrink:0;">' + _escapeHtml(task.assignee) + '</span>';
+          html += '</div>';
+
+          // Task-level milestones
+          var taskMilestones = ProjectManager.getMilestonesByTask(task.id);
+          if (taskMilestones.length > 0) {
+            html += '<div class="tree-milestone-list">';
+            taskMilestones.forEach(function(ms) {
+              html += '<div class="tree-milestone" data-milestone-id="' + ms.id + '" data-task-id="' + task.id + '">';
+              html += '<span>' + ms.icon + '</span>';
+              html += '<span>' + _escapeHtml(ms.name) + '</span>';
+              html += '<span style="margin-left:auto;font-size:11px;">' + ms.date.slice(5) + '</span>';
+              html += '</div>';
+            });
+            html += '</div>';
+          }
+        });
+
+        html += '</div></div>';
+      });
+
+      this.container.innerHTML = html;
+      this._bindEvents();
+    },
+
+    _bindEvents() {
+      var self = this;
+
+      // Collapse/expand projects
+      this.container.querySelectorAll('.tree-project-header').forEach(function(el) {
+        el.addEventListener('click', function() {
+          var projectId = el.dataset.projectId;
+          if (self.collapsedProjects.has(projectId)) {
+            self.collapsedProjects.delete(projectId);
+          } else {
+            self.collapsedProjects.add(projectId);
+          }
+          self.render();
+        });
+
+        el.addEventListener('contextmenu', function(e) {
+          e.preventDefault();
+          self.showContextMenu(e.clientX, e.clientY, [
+            { label: '添加任务', action: function() { App.showAddTask(el.dataset.projectId); } },
+            { label: '添加里程碑', action: function() { App.showAddProjectMilestone(el.dataset.projectId); } },
+            { label: '编辑项目', action: function() { App.showEditProject(el.dataset.projectId); } },
+            { label: '删除项目', action: function() { App.deleteProject(el.dataset.projectId); }, danger: true }
+          ]);
+        });
+      });
+
+      // Click tasks
+      this.container.querySelectorAll('.tree-task').forEach(function(el) {
+        el.addEventListener('click', function() {
+          self.selectedTaskId = el.dataset.taskId;
+          self.render();
+        });
+
+        el.addEventListener('contextmenu', function(e) {
+          e.preventDefault();
+          self.showContextMenu(e.clientX, e.clientY, [
+            { label: '添加里程碑', action: function() { App.showAddTaskMilestone(el.dataset.taskId); } },
+            { label: '编辑任务', action: function() { App.showEditTask(el.dataset.taskId); } },
+            { label: '删除任务', action: function() { App.deleteTask(el.dataset.taskId); }, danger: true }
+          ]);
+        });
+      });
+
+      // Click milestones
+      this.container.querySelectorAll('.tree-milestone').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+          e.stopPropagation();
+          App.showEditMilestone(el.dataset.milestoneId);
+        });
+
+        el.addEventListener('contextmenu', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          self.showContextMenu(e.clientX, e.clientY, [
+            { label: '编辑里程碑', action: function() { App.showEditMilestone(el.dataset.milestoneId); } },
+            { label: '删除里程碑', action: function() { App.deleteMilestone(el.dataset.milestoneId); }, danger: true }
+          ]);
+        });
+      });
+    },
+
+    showContextMenu(x, y, items) {
+      var self = this;
+      var html = '';
+      items.forEach(function(item) {
+        var cls = item.danger ? ' danger' : '';
+        html += '<div class="context-menu-item' + cls + '">' + item.label + '</div>';
+      });
+      this.contextMenu.innerHTML = html;
+      this.contextMenu.style.left = x + 'px';
+      this.contextMenu.style.top = y + 'px';
+      this.contextMenu.classList.add('active');
+
+      this.contextMenu.querySelectorAll('.context-menu-item').forEach(function(el, i) {
+        el.addEventListener('click', function(e) {
+          e.stopPropagation();
+          self.hideContextMenu();
+          items[i].action();
+        });
+      });
+    },
+
+    hideContextMenu() {
+      this.contextMenu.classList.remove('active');
+    }
+  };
+
+  function _escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // Temporary init (App controller will replace this later)
+  (function() {
+    ProjectManager.init();
+    ModalManager.init();
+    TreeView.init();
+    TreeView.render();
+  })();
+  </script>
+
+  <div class="context-menu" id="context-menu"></div>
+
+</body>
+</html>
