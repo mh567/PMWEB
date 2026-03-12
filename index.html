@@ -1680,7 +1680,12 @@
       document.addEventListener('mousemove', function(e) { self._onMouseMove(e); });
       document.addEventListener('mouseup', function(e) { self._onMouseUp(e); });
       document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && self.isDragging) {
+        if (e.key === 'Escape' && (self.isDragging || self._pendingDrag)) {
+          self._cancelDrag();
+        }
+      });
+      document.addEventListener('mouseleave', function(e) {
+        if (!e.relatedTarget && (self.isDragging || self._pendingDrag)) {
           self._cancelDrag();
         }
       });
@@ -1737,36 +1742,130 @@
     },
 
     _startDrag: function(e, type, target, element) {
+      // Don't immediately start drag — wait for threshold
+      this._pendingDrag = {
+        type: type,
+        target: target,
+        element: element,
+        startX: e.clientX,
+        startY: e.clientY
+      };
+
+      if (type === 'move' || type === 'resize-left' || type === 'resize-right') {
+        this._pendingDrag.originalStartDate = target.startDate;
+        this._pendingDrag.originalEndDate = target.endDate;
+      } else if (type === 'milestone') {
+        this._pendingDrag.originalDate = target.date;
+      }
+
+      document.body.style.userSelect = 'none';
+    },
+
+    _activateDrag: function(pending) {
       this.isDragging = true;
-      this.dragType = type;
-      this.dragTarget = target;
-      this.dragElement = element;
-      this.startX = e.clientX;
-      this.startY = e.clientY;
+      this.dragType = pending.type;
+      this.dragTarget = pending.target;
+      this.dragElement = pending.element;
+      this.startX = pending.startX;
+      this.startY = pending.startY;
       this._rowMergeMode = false;
       this._targetRowIndex = -1;
 
-      if (type === 'move' || type === 'resize-left' || type === 'resize-right') {
-        this.originalStartDate = target.startDate;
-        this.originalEndDate = target.endDate;
-      } else if (type === 'milestone') {
-        this.originalDate = target.date;
+      if (pending.type === 'move' || pending.type === 'resize-left' || pending.type === 'resize-right') {
+        this.originalStartDate = pending.originalStartDate;
+        this.originalEndDate = pending.originalEndDate;
+      } else if (pending.type === 'milestone') {
+        this.originalDate = pending.originalDate;
       }
 
+      // Create tooltip
       this.tooltip = document.createElement('div');
       this.tooltip.className = 'gantt-drag-tooltip';
       document.body.appendChild(this.tooltip);
 
-      document.body.style.userSelect = 'none';
-      document.body.style.cursor = type === 'move' ? 'grabbing' : 'col-resize';
+      // Create ghost element
+      this._createGhost(pending.element, pending.type);
+
+      // Dim original element
+      pending.element.style.opacity = '0.3';
+
+      document.body.style.cursor = (pending.type === 'move' || pending.type === 'milestone') ? 'grabbing' : 'col-resize';
+    },
+
+    _createGhost: function(element, type) {
+      var rect = element.getBoundingClientRect();
+      var ghost = document.createElement('div');
+      ghost.className = 'drag-ghost';
+
+      if (type === 'milestone') {
+        ghost.innerHTML = '<span class="drag-ghost-milestone">' + element.textContent + '</span>';
+        ghost.style.width = rect.width + 'px';
+        ghost.style.height = rect.height + 'px';
+      } else {
+        var bgColor = element.style.background || getComputedStyle(element).backgroundColor;
+        ghost.innerHTML = '<div class="drag-ghost-bar" style="background:' + bgColor + ';width:' + rect.width + 'px;">' + element.textContent + '</div>';
+      }
+
+      ghost.style.left = rect.left + 'px';
+      ghost.style.top = rect.top + 'px';
+
+      document.body.appendChild(ghost);
+
+      this._ghost = ghost;
+      this._ghostOffsetX = this.startX - rect.left;
+      this._ghostOffsetY = this.startY - rect.top;
+    },
+
+    _updateSnapLine: function(dateStr) {
+      // Remove existing snap line
+      if (this._snapLine && this._snapLine.parentNode) {
+        this._snapLine.parentNode.removeChild(this._snapLine);
+      }
+
+      var ganttBody = document.querySelector('.gantt-body');
+      if (!ganttBody) return;
+
+      var x = GanttView._dateToX(dateStr);
+      if (x <= 0) return;
+
+      var line = document.createElement('div');
+      line.className = 'snap-line';
+      line.style.left = x + 'px';
+
+      var rowContainer = ganttBody.firstElementChild;
+      if (rowContainer) {
+        rowContainer.appendChild(line);
+        this._snapLine = line;
+      }
     },
 
     _onMouseMove: function(e) {
+      // Phase 1: threshold check
+      if (this._pendingDrag && !this.isDragging) {
+        var dx = e.clientX - this._pendingDrag.startX;
+        var dy = e.clientY - this._pendingDrag.startY;
+        if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+        // Threshold exceeded — activate drag
+        this._activateDrag(this._pendingDrag);
+        this._pendingDrag = null;
+      }
+
       if (!this.isDragging) return;
 
       var deltaX = e.clientX - this.startX;
       var deltaY = e.clientY - this.startY;
       var daysDelta = Math.round(deltaX / GanttView.cellWidth * this._daysPerCell());
+
+      // Update ghost position
+      if (this._ghost) {
+        if (this.dragType === 'milestone') {
+          // Milestone: horizontal only
+          this._ghost.style.left = (e.clientX - this._ghostOffsetX) + 'px';
+        } else {
+          this._ghost.style.left = (e.clientX - this._ghostOffsetX) + 'px';
+          this._ghost.style.top = (e.clientY - this._ghostOffsetY) + 'px';
+        }
+      }
 
       if (this.dragType === 'move') {
         // Detect vertical drag intent for row merge
@@ -1796,21 +1895,27 @@
           this.tooltip.textContent = newStart + ' ~ ' + newEnd;
           this.dragTarget._tempStart = newStart;
           this.dragTarget._tempEnd = newEnd;
+
+          // Update snap line
+          this._updateSnapLine(newStart);
         }
       } else if (this.dragType === 'resize-left') {
         var newStart = this._addDays(this.originalStartDate, daysDelta);
         if (newStart >= this.originalEndDate) return;
         this.tooltip.textContent = '开始: ' + newStart;
         this.dragTarget._tempStart = newStart;
+        this._updateSnapLine(newStart);
       } else if (this.dragType === 'resize-right') {
         var newEnd = this._addDays(this.originalEndDate, daysDelta);
         if (newEnd <= this.originalStartDate) return;
         this.tooltip.textContent = '结束: ' + newEnd;
         this.dragTarget._tempEnd = newEnd;
+        this._updateSnapLine(newEnd);
       } else if (this.dragType === 'milestone') {
         var newDate = this._addDays(this.originalDate, daysDelta);
         this.tooltip.textContent = newDate;
         this.dragTarget._tempDate = newDate;
+        this._updateSnapLine(newDate);
       }
 
       this.tooltip.style.left = (e.clientX + 12) + 'px';
@@ -1818,6 +1923,12 @@
     },
 
     _onMouseUp: function(e) {
+      // Handle case where mouse was released before threshold
+      if (this._pendingDrag) {
+        this._pendingDrag = null;
+        document.body.style.userSelect = '';
+        return;
+      }
       if (!this.isDragging) return;
 
       var target = this.dragTarget;
@@ -1868,6 +1979,11 @@
     },
 
     _cancelDrag: function() {
+      if (this._pendingDrag) {
+        this._pendingDrag = null;
+        document.body.style.userSelect = '';
+        return;
+      }
       if (!this.isDragging) return;
       delete this.dragTarget._tempStart;
       delete this.dragTarget._tempEnd;
@@ -1879,12 +1995,33 @@
     _cleanup: function() {
       this.isDragging = false;
       this.dragType = null;
-      this.dragTarget = null;
+      this._pendingDrag = null;
+
+      // Restore original element opacity
+      if (this.dragElement) {
+        this.dragElement.style.opacity = '';
+      }
       this.dragElement = null;
+      this.dragTarget = null;
+
+      // Remove ghost
+      if (this._ghost && this._ghost.parentNode) {
+        document.body.removeChild(this._ghost);
+      }
+      this._ghost = null;
+
+      // Remove snap line
+      if (this._snapLine && this._snapLine.parentNode) {
+        this._snapLine.parentNode.removeChild(this._snapLine);
+      }
+      this._snapLine = null;
+
+      // Remove tooltip
       if (this.tooltip && this.tooltip.parentNode) {
         document.body.removeChild(this.tooltip);
       }
       this.tooltip = null;
+
       document.body.style.userSelect = '';
       document.body.style.cursor = '';
     },
