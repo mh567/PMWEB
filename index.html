@@ -686,9 +686,6 @@
     <div class="modal-box" id="modal-box"></div>
   </div>
 
-  <!-- Hidden file input for import -->
-  <input type="file" id="import-file-input" accept=".json" style="display:none">
-
   <script>
   // ============================================================
   // DataStore — localStorage persistence + JSON import/export
@@ -1371,10 +1368,17 @@
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   // ============================================================
+  // Parse YYYY-MM-DD as local time (not UTC)
+  function _parseDate(str) {
+    var parts = String(str).split('-');
+    return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  }
+
   // == GanttView: 甘特图渲染、时间轴计算、粒度切换
   // ============================================================
   const GanttView = {
@@ -1410,8 +1414,8 @@
       }
 
       allDates.sort();
-      var minDate = new Date(allDates[0]);
-      var maxDate = new Date(allDates[allDates.length - 1]);
+      var minDate = _parseDate(allDates[0]);
+      var maxDate = _parseDate(allDates[allDates.length - 1]);
 
       var pad = this.granularity === 'year' ? 30 : this.granularity === 'month' ? 14 : 7;
       this.startDate = new Date(minDate);
@@ -1467,7 +1471,7 @@
     },
 
     _dateToX(dateStr) {
-      var date = new Date(dateStr);
+      var date = _parseDate(dateStr);
       var totalDays = this._daysBetween(this.startDate, this.endDate);
       var dayOffset = this._daysBetween(this.startDate, date);
       var totalWidth = this.cells.length * this.cellWidth;
@@ -1478,7 +1482,7 @@
       var x1 = this._dateToX(startStr);
       var x2 = this._dateToX(endStr);
       var oneDayWidth = this._dateToX(
-        DataStore.formatDate(new Date(new Date(startStr).getTime() + 86400000))
+        DataStore.formatDate(new Date(_parseDate(startStr).getTime() + 86400000))
       ) - this._dateToX(startStr);
       return Math.max(x2 - x1 + oneDayWidth, 4);
     },
@@ -1816,8 +1820,8 @@
         listHtml += '<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;gap:8px;">';
         listHtml += '<span style="width:14px;height:14px;border-radius:50%;background:' + p.color + ';flex-shrink:0;"></span>';
         listHtml += '<span style="flex:1;">' + _escapeHtml(p.name) + '</span>';
-        listHtml += '<button style="padding:2px 8px;border:1px solid #ddd;border-radius:3px;background:#fff;cursor:pointer;font-size:12px;" onclick="App.showEditProject(\'' + p.id + '\')">编辑</button>';
-        listHtml += '<button style="padding:2px 8px;border:1px solid #ddd;border-radius:3px;background:#fff;cursor:pointer;font-size:12px;color:var(--color-danger);" onclick="App.deleteProject(\'' + p.id + '\')">删除</button>';
+        listHtml += '<button style="padding:2px 8px;border:1px solid #ddd;border-radius:3px;background:#fff;cursor:pointer;font-size:12px;" onclick="App.showEditProject(\'' + _escapeHtml(p.id) + '\')">编辑</button>';
+        listHtml += '<button style="padding:2px 8px;border:1px solid #ddd;border-radius:3px;background:#fff;cursor:pointer;font-size:12px;color:var(--color-danger);" onclick="App.deleteProject(\'' + _escapeHtml(p.id) + '\')">删除</button>';
         listHtml += '</div>';
       });
       if (projects.length === 0) {
@@ -1857,7 +1861,7 @@
       var self = this;
       var project = ProjectManager.data.projects.find(function(p) { return p.id === projectId; });
       if (!project) return;
-      ModalManager.confirm('确定要删除项目「' + project.name + '」及其所有任务和里程碑吗？', function() {
+      ModalManager.confirm('确定要删除项目「' + _escapeHtml(project.name) + '」及其所有任务和里程碑吗？', function() {
         ProjectManager.deleteProject(projectId);
         self.renderAll();
       });
@@ -1889,7 +1893,7 @@
       var self = this;
       var task = ProjectManager.data.tasks.find(function(t) { return t.id === taskId; });
       if (!task) return;
-      ModalManager.confirm('确定要删除任务「' + task.name + '」吗？', function() {
+      ModalManager.confirm('确定要删除任务「' + _escapeHtml(task.name) + '」吗？', function() {
         ProjectManager.deleteTask(taskId);
         self.renderAll();
       });
@@ -1927,7 +1931,7 @@
       var self = this;
       var milestone = ProjectManager.data.milestones.find(function(m) { return m.id === milestoneId; });
       if (!milestone) return;
-      ModalManager.confirm('确定要删除里程碑「' + milestone.name + '」吗？', function() {
+      ModalManager.confirm('确定要删除里程碑「' + _escapeHtml(milestone.name) + '」吗？', function() {
         ProjectManager.deleteMilestone(milestoneId);
         self.renderAll();
       });
