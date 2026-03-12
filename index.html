@@ -538,6 +538,95 @@
       color: var(--color-text-light);
       font-size: 14px;
     }
+
+    /* == 日历视图 == */
+    .calendar-container {
+      padding: 16px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    .calendar-nav {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 12px;
+      flex-shrink: 0;
+    }
+    .calendar-nav button {
+      padding: 4px 12px;
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      background: var(--color-surface);
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .calendar-nav button:hover { background: #f0f0f0; }
+    .calendar-nav .month-label {
+      font-size: 16px;
+      font-weight: 600;
+      min-width: 120px;
+      text-align: center;
+    }
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      flex: 1;
+      gap: 1px;
+      background: var(--color-border);
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .calendar-weekday {
+      background: #f8f9fa;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text-light);
+      padding: 8px 4px;
+    }
+    .calendar-day {
+      background: var(--color-surface);
+      min-height: 80px;
+      padding: 4px;
+      cursor: pointer;
+      overflow: hidden;
+    }
+    .calendar-day:hover { background: #f8f9fc; }
+    .calendar-day.other-month {
+      background: #fafafa;
+      color: #ccc;
+    }
+    .calendar-day.today {
+      background: #f0f4ff;
+    }
+    .calendar-day-number {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .calendar-task-bar {
+      font-size: 10px;
+      color: #fff;
+      padding: 1px 4px;
+      border-radius: 2px;
+      margin-bottom: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .calendar-milestone-item {
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      cursor: pointer;
+      color: var(--color-text);
+    }
+    .calendar-milestone-item:hover { font-weight: 600; }
   </style>
 </head>
 <body>
@@ -556,11 +645,12 @@
     </div>
     <div class="toolbar-sep"></div>
     <div class="btn-group" id="granularity-group">
-      <button class="btn" id="btn-gran-year" data-gran="year">年</button>
-      <button class="btn active" id="btn-gran-month" data-gran="month">月</button>
-      <button class="btn" id="btn-gran-week" data-gran="week">周</button>
+      <button class="btn" id="btn-granularity-year" data-gran="year">年</button>
+      <button class="btn active" id="btn-granularity-month" data-gran="month">月</button>
+      <button class="btn" id="btn-granularity-week" data-gran="week">周</button>
     </div>
     <div class="spacer"></div>
+    <button class="btn btn-primary" id="btn-add-task">+ 新建任务</button>
   </div>
 
   <!-- MAIN CONTAINER -->
@@ -586,9 +676,7 @@
 
   <!-- STATUS BAR -->
   <div id="status-bar">
-    <span class="status-item" id="status-project">项目：-</span>
-    <span class="status-item" id="status-tasks">任务：0</span>
-    <span class="status-item" id="status-milestones">里程碑：0</span>
+    <span class="status-item" id="status-text">0 个项目 · 0 个任务（进行中 0，已完成 0）</span>
     <span class="spacer" style="flex:1"></span>
     <span class="status-item" id="status-info">PMWEB v1.0</span>
   </div>
@@ -1505,13 +1593,400 @@
     }
   };
 
-  // Temporary init (App controller will replace this later)
-  (function() {
-    ProjectManager.init();
-    ModalManager.init();
-    TreeView.init();
-    TreeView.render();
-  })();
+  // ============================================================
+  // == CalendarView: 月历渲染
+  // ============================================================
+  var CalendarView = {
+    container: null,
+    currentYear: new Date().getFullYear(),
+    currentMonth: new Date().getMonth(),
+
+    init: function(container) {
+      this.container = container;
+    },
+
+    render: function() {
+      var year = this.currentYear;
+      var month = this.currentMonth;
+      var today = new Date();
+      var todayStr = DataStore.formatDate(today);
+      var self = this;
+
+      var monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+      var html = '<div class="calendar-container">';
+      html += '<div class="calendar-nav">';
+      html += '<button id="cal-prev-month">◀</button>';
+      html += '<span class="month-label">' + year + '年 ' + monthNames[month] + '</span>';
+      html += '<button id="cal-next-month">▶</button>';
+      html += '</div>';
+
+      html += '<div class="calendar-grid">';
+
+      var weekdays = ['一', '二', '三', '四', '五', '六', '日'];
+      weekdays.forEach(function(d) {
+        html += '<div class="calendar-weekday">' + d + '</div>';
+      });
+
+      var firstDay = new Date(year, month, 1);
+      var startDay = new Date(firstDay);
+      var dayOfWeek = (firstDay.getDay() + 6) % 7;
+      startDay.setDate(startDay.getDate() - dayOfWeek);
+
+      var allTasks = ProjectManager.getAllTasks();
+      var allMilestones = ProjectManager.getAllMilestones();
+      var projects = {};
+      ProjectManager.getProjects().forEach(function(p) { projects[p.id] = p; });
+
+      for (var i = 0; i < 42; i++) {
+        var date = new Date(startDay);
+        date.setDate(date.getDate() + i);
+        var dateStr = DataStore.formatDate(date);
+        var isCurrentMonth = date.getMonth() === month;
+        var isToday = dateStr === todayStr;
+
+        var cls = 'calendar-day';
+        if (!isCurrentMonth) cls += ' other-month';
+        if (isToday) cls += ' today';
+
+        html += '<div class="' + cls + '" data-date="' + dateStr + '">';
+        html += '<div class="calendar-day-number">' + date.getDate() + '</div>';
+
+        // Tasks for this day
+        allTasks.forEach(function(task) {
+          if (dateStr >= task.startDate && dateStr <= task.endDate) {
+            var project = projects[task.projectId];
+            if (project) {
+              var opacity = task.status === 'done' ? '0.5' : '1';
+              var showName = dateStr === task.startDate || date.getDay() === 1;
+              html += '<div class="calendar-task-bar" style="background:' + project.color + ';opacity:' + opacity + ';" data-task-id="' + task.id + '" title="' + _escapeHtml(task.name) + '">' + (showName ? _escapeHtml(task.name) : '&nbsp;') + '</div>';
+            }
+          }
+        });
+
+        // Milestones for this day
+        allMilestones.forEach(function(ms) {
+          if (ms.date === dateStr) {
+            html += '<div class="calendar-milestone-item" data-milestone-id="' + ms.id + '" title="' + _escapeHtml(ms.name) + '">' + ms.icon + ' ' + _escapeHtml(ms.name) + '</div>';
+          }
+        });
+
+        html += '</div>';
+      }
+
+      html += '</div></div>';
+      this.container.innerHTML = html;
+
+      // Bind navigation
+      document.getElementById('cal-prev-month').addEventListener('click', function() {
+        self.currentMonth--;
+        if (self.currentMonth < 0) { self.currentMonth = 11; self.currentYear--; }
+        self.render();
+      });
+      document.getElementById('cal-next-month').addEventListener('click', function() {
+        self.currentMonth++;
+        if (self.currentMonth > 11) { self.currentMonth = 0; self.currentYear++; }
+        self.render();
+      });
+
+      // Click tasks
+      this.container.querySelectorAll('.calendar-task-bar').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+          e.stopPropagation();
+          App.showEditTask(el.dataset.taskId);
+        });
+      });
+
+      // Click milestones
+      this.container.querySelectorAll('.calendar-milestone-item').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+          e.stopPropagation();
+          App.showEditMilestone(el.dataset.milestoneId);
+        });
+      });
+    }
+  };
+
+  // ============================================================
+  // == App: 初始化、事件绑定、视图切换
+  // ============================================================
+  var App = {
+    currentView: 'gantt',
+
+    init: function() {
+      ProjectManager.init();
+      ModalManager.init();
+      TreeView.init();
+      GanttView.init(document.getElementById('content-area'));
+      CalendarView.init(document.getElementById('content-area'));
+
+      this.currentView = ProjectManager.getSetting('lastView') || 'gantt';
+      var granularity = ProjectManager.getSetting('lastGranularity') || 'month';
+      GanttView.granularity = granularity;
+
+      this._bindToolbar();
+      this._updateViewButtons();
+      this._updateGranularityButtons();
+      this.renderAll();
+    },
+
+    renderAll: function() {
+      TreeView.render();
+      if (this.currentView === 'gantt') {
+        GanttView.render();
+      } else {
+        CalendarView.render();
+      }
+      this._updateStatusBar();
+    },
+
+    _bindToolbar: function() {
+      var self = this;
+
+      document.getElementById('btn-project-manager').addEventListener('click', function() { self.showProjectManager(); });
+      document.getElementById('btn-import').addEventListener('click', function() { self.importData(); });
+      document.getElementById('btn-export').addEventListener('click', function() { self.exportData(); });
+      document.getElementById('btn-view-gantt').addEventListener('click', function() { self.switchView('gantt'); });
+      document.getElementById('btn-view-calendar').addEventListener('click', function() { self.switchView('calendar'); });
+      document.getElementById('btn-granularity-year').addEventListener('click', function() { self.switchGranularity('year'); });
+      document.getElementById('btn-granularity-month').addEventListener('click', function() { self.switchGranularity('month'); });
+      document.getElementById('btn-granularity-week').addEventListener('click', function() { self.switchGranularity('week'); });
+
+      document.getElementById('btn-add-task').addEventListener('click', function() {
+        var projects = ProjectManager.getProjects();
+        if (projects.length === 0) {
+          alert('请先创建项目');
+          self.showProjectManager();
+          return;
+        }
+        if (projects.length === 1) {
+          self.showAddTask(projects[0].id);
+        } else {
+          self._showProjectSelector(function(projectId) {
+            self.showAddTask(projectId);
+          });
+        }
+      });
+
+      document.getElementById('btn-add-project').addEventListener('click', function() {
+        self.showAddProject();
+      });
+    },
+
+    switchView: function(view) {
+      this.currentView = view;
+      ProjectManager.setSetting('lastView', view);
+      this._updateViewButtons();
+      this.renderAll();
+    },
+
+    switchGranularity: function(g) {
+      GanttView.granularity = g;
+      ProjectManager.setSetting('lastGranularity', g);
+      this._updateGranularityButtons();
+      if (this.currentView === 'gantt') {
+        GanttView.render();
+      }
+    },
+
+    _updateViewButtons: function() {
+      document.getElementById('btn-view-gantt').classList.toggle('active', this.currentView === 'gantt');
+      document.getElementById('btn-view-calendar').classList.toggle('active', this.currentView === 'calendar');
+    },
+
+    _updateGranularityButtons: function() {
+      document.getElementById('btn-granularity-year').classList.toggle('active', GanttView.granularity === 'year');
+      document.getElementById('btn-granularity-month').classList.toggle('active', GanttView.granularity === 'month');
+      document.getElementById('btn-granularity-week').classList.toggle('active', GanttView.granularity === 'week');
+    },
+
+    _updateStatusBar: function() {
+      var projects = ProjectManager.getProjects();
+      var tasks = ProjectManager.getAllTasks();
+      var done = tasks.filter(function(t) { return t.status === 'done'; }).length;
+      var inProgress = tasks.filter(function(t) { return t.status === 'inProgress'; }).length;
+      document.getElementById('status-text').textContent =
+        projects.length + ' 个项目 · ' + tasks.length + ' 个任务（进行中 ' + inProgress + '，已完成 ' + done + '）';
+    },
+
+    // -- Project operations --
+    showProjectManager: function() {
+      var projects = ProjectManager.getProjects();
+      var listHtml = '';
+      projects.forEach(function(p) {
+        listHtml += '<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;gap:8px;">';
+        listHtml += '<span style="width:14px;height:14px;border-radius:50%;background:' + p.color + ';flex-shrink:0;"></span>';
+        listHtml += '<span style="flex:1;">' + _escapeHtml(p.name) + '</span>';
+        listHtml += '<button style="padding:2px 8px;border:1px solid #ddd;border-radius:3px;background:#fff;cursor:pointer;font-size:12px;" onclick="App.showEditProject(\'' + p.id + '\')">编辑</button>';
+        listHtml += '<button style="padding:2px 8px;border:1px solid #ddd;border-radius:3px;background:#fff;cursor:pointer;font-size:12px;color:var(--color-danger);" onclick="App.deleteProject(\'' + p.id + '\')">删除</button>';
+        listHtml += '</div>';
+      });
+      if (projects.length === 0) {
+        listHtml = '<p style="color:var(--color-text-light);text-align:center;padding:16px;">暂无项目</p>';
+      }
+
+      ModalManager.open(
+        '<div class="modal-title">项目管理</div>'
+        + '<div style="max-height:300px;overflow-y:auto;">' + listHtml + '</div>'
+        + '<div class="modal-actions">'
+        + '<button onclick="ModalManager.close()">关闭</button>'
+        + '<button class="btn-primary" onclick="ModalManager.close();App.showAddProject();">新建项目</button>'
+        + '</div>'
+      );
+    },
+
+    showAddProject: function() {
+      var self = this;
+      ModalManager.showProjectForm(null, function(data) {
+        var p = ProjectManager.addProject(data.name);
+        if (p && data.color) ProjectManager.updateProject(p.id, { color: data.color });
+        self.renderAll();
+      });
+    },
+
+    showEditProject: function(projectId) {
+      var self = this;
+      var project = ProjectManager.data.projects.find(function(p) { return p.id === projectId; });
+      if (!project) return;
+      ModalManager.showProjectForm(project, function(data) {
+        ProjectManager.updateProject(projectId, data);
+        self.renderAll();
+      });
+    },
+
+    deleteProject: function(projectId) {
+      var self = this;
+      var project = ProjectManager.data.projects.find(function(p) { return p.id === projectId; });
+      if (!project) return;
+      ModalManager.confirm('确定要删除项目「' + project.name + '」及其所有任务和里程碑吗？', function() {
+        ProjectManager.deleteProject(projectId);
+        self.renderAll();
+      });
+    },
+
+    // -- Task operations --
+    showAddTask: function(projectId) {
+      var self = this;
+      ModalManager.showTaskForm(null, projectId, function(data) {
+        var t = ProjectManager.addTask(data.projectId, data.name, data.startDate, data.endDate);
+        if (t) {
+          ProjectManager.updateTask(t.id, { description: data.description, assignee: data.assignee, status: data.status });
+        }
+        self.renderAll();
+      });
+    },
+
+    showEditTask: function(taskId) {
+      var self = this;
+      var task = ProjectManager.data.tasks.find(function(t) { return t.id === taskId; });
+      if (!task) return;
+      ModalManager.showTaskForm(task, task.projectId, function(data) {
+        ProjectManager.updateTask(taskId, data);
+        self.renderAll();
+      });
+    },
+
+    deleteTask: function(taskId) {
+      var self = this;
+      var task = ProjectManager.data.tasks.find(function(t) { return t.id === taskId; });
+      if (!task) return;
+      ModalManager.confirm('确定要删除任务「' + task.name + '」吗？', function() {
+        ProjectManager.deleteTask(taskId);
+        self.renderAll();
+      });
+    },
+
+    // -- Milestone operations --
+    showAddTaskMilestone: function(taskId) {
+      var self = this;
+      ModalManager.showMilestoneForm(null, { taskId: taskId }, function(data) {
+        ProjectManager.addMilestone(data.name, data.date, data.icon, { taskId: data.taskId });
+        self.renderAll();
+      });
+    },
+
+    showAddProjectMilestone: function(projectId) {
+      var self = this;
+      ModalManager.showMilestoneForm(null, { projectId: projectId }, function(data) {
+        ProjectManager.addMilestone(data.name, data.date, data.icon, { projectId: data.projectId });
+        self.renderAll();
+      });
+    },
+
+    showEditMilestone: function(milestoneId) {
+      var self = this;
+      var milestone = ProjectManager.data.milestones.find(function(m) { return m.id === milestoneId; });
+      if (!milestone) return;
+      var parentInfo = milestone.taskId ? { taskId: milestone.taskId } : { projectId: milestone.projectId };
+      ModalManager.showMilestoneForm(milestone, parentInfo, function(data) {
+        ProjectManager.updateMilestone(milestoneId, data);
+        self.renderAll();
+      });
+    },
+
+    deleteMilestone: function(milestoneId) {
+      var self = this;
+      var milestone = ProjectManager.data.milestones.find(function(m) { return m.id === milestoneId; });
+      if (!milestone) return;
+      ModalManager.confirm('确定要删除里程碑「' + milestone.name + '」吗？', function() {
+        ProjectManager.deleteMilestone(milestoneId);
+        self.renderAll();
+      });
+    },
+
+    // -- Import/Export --
+    exportData: function() {
+      DataStore.exportJSON(ProjectManager.data);
+    },
+
+    importData: function() {
+      var self = this;
+      var input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        DataStore.importJSON(file).then(function(data) {
+          ModalManager.confirm('导入将覆盖当前所有数据，确定继续吗？', function() {
+            ProjectManager.replaceData(data);
+            self.renderAll();
+          });
+        }).catch(function(err) {
+          alert(err.message);
+        });
+      });
+      input.click();
+    },
+
+    // -- Helper: project selector --
+    _showProjectSelector: function(onSelect) {
+      var projects = ProjectManager.getProjects();
+      var listHtml = '';
+      projects.forEach(function(p) {
+        listHtml += '<div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0;gap:8px;cursor:pointer;" class="project-select-item" data-project-id="' + p.id + '">';
+        listHtml += '<span style="width:12px;height:12px;border-radius:50%;background:' + p.color + ';"></span>';
+        listHtml += '<span>' + _escapeHtml(p.name) + '</span>';
+        listHtml += '</div>';
+      });
+      ModalManager.open(
+        '<div class="modal-title">选择项目</div>'
+        + '<div>' + listHtml + '</div>'
+      );
+      document.querySelectorAll('.project-select-item').forEach(function(el) {
+        el.addEventListener('click', function() {
+          ModalManager.close();
+          onSelect(el.dataset.projectId);
+        });
+      });
+    }
+  };
+
+  // ============================================================
+  // == 启动
+  // ============================================================
+  document.addEventListener('DOMContentLoaded', function() {
+    App.init();
+  });
   </script>
 
   <div class="context-menu" id="context-menu"></div>
