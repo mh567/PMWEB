@@ -11,7 +11,7 @@
 - 月历视图：标准月历格子展示任务和里程碑
 - 按项目分组管理任务
 - 任务时间线上可添加里程碑/关键节点
-- 时间线粒度可切换：年/月/周/日
+- 时间线粒度可切换：年/月/周
 - 支持项目、任务、里程碑的增删改
 - 数据自动保存 localStorage，支持 JSON 文件导入导出
 
@@ -30,24 +30,26 @@ Task (任务)
 ├── name: string
 ├── startDate: string (YYYY-MM-DD)
 ├── endDate: string (YYYY-MM-DD)
+├── status: string ("todo" | "inProgress" | "done")
 └── order: number
 
 Milestone (里程碑)
 ├── id: string (UUID)
-├── taskId: string
+├── taskId: string (可选，任务级里程碑)
+├── projectId: string (可选，项目级里程碑；taskId 和 projectId 二选一)
 ├── name: string
 ├── date: string (YYYY-MM-DD)
 └── icon: string (◆ ★ ● 等)
 ```
 
-顶层存储结构：`{ projects: [], tasks: [], milestones: [], settings: { lastView, lastGranularity } }`
+顶层存储结构：`{ version: 1, projects: [], tasks: [], milestones: [], settings: { lastView, lastGranularity } }`
 
 ## 界面布局
 
 ```
 ┌─────────────────────────────────────────────────────┐
 │  顶部工具栏                                           │
-│  [项目管理] [导入] [导出] [甘特图/日历] [粒度: 年|月|周|日]  │
+│  [项目管理] [导入] [导出] [甘特图/日历] [粒度: 年|月|周]  │
 ├────────────┬────────────────────────────────────────┤
 │  左侧面板    │         右侧主区域                      │
 │  树形任务列表  │   甘特图: 时间线 + 里程碑               │
@@ -63,7 +65,7 @@ Milestone (里程碑)
 - 左侧：树形列表，按项目分组，可折叠展开
 - 右侧：时间轴网格，每行对应一个任务
   - 任务条：带颜色的横向 div，颜色跟随项目
-  - 里程碑：任务条上的菱形标记
+  - 里程碑：任务条上的菱形标记；项目级里程碑显示为独立行
   - 时间轴顶部显示日期刻度，根据粒度切换
 - 交互：点击任务条/里程碑弹出编辑面板
 
@@ -112,18 +114,24 @@ index.html
 
 ### 时间轴粒度
 
-| 粒度 | 单元格含义 | 表头显示 |
-|------|-----------|---------|
-| 年   | 1个月     | 月份名   |
-| 月   | 1周       | 周序号   |
-| 周   | 1天       | 日期     |
-| 日   | 1天(放大) | 日期     |
+| 粒度 | 单元格含义 | 表头显示 | 可视范围约 |
+|------|-----------|---------|----------|
+| 年   | 1个月     | 月份名   | 12个月   |
+| 月   | 1周       | 周序号   | 8-10周   |
+| 周   | 1天       | 日期     | 2-4周    |
 
 切换粒度时重新计算所有任务条位置和宽度。
 
+### 数据校验
+
+- endDate 不得早于 startDate
+- 任务级里程碑的 date 必须在其所属任务的 startDate ~ endDate 范围内
+- 删除项目时级联删除其下所有任务和里程碑（需用户确认）
+- 导入时校验 JSON 结构和 version 字段，格式不匹配则提示错误拒绝导入
+
 ### 信创兼容性
 
-- 不使用 ES6 Module（import/export）
+- 不使用 ES6 Module（import/export），但可使用其他 ES6 特性（箭头函数、const/let、模板字符串、解构等，信创环境 Chromium 内核均支持）
 - 避免最新 CSS 特性（container queries 等），使用 flexbox + 绝对定位
 - 标准 DOM 事件，零第三方依赖
 - 系统默认字体栈
