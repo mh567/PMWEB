@@ -1003,7 +1003,7 @@
     confirm: function(message, onConfirm) {
       this.open(
         '<div class="modal-title">确认</div>'
-        + '<p style="margin-bottom:16px;font-size:14px;">' + message + '</p>'
+        + '<p style="margin-bottom:16px;font-size:14px;">' + _escapeHtml(message) + '</p>'
         + '<div class="modal-actions">'
         + '<button onclick="ModalManager.close()">取消</button>'
         + '<button class="btn-danger" id="modal-confirm-btn">确定</button>'
@@ -1693,6 +1693,8 @@
       this.dragElement = element;
       this.startX = e.clientX;
       this.startY = e.clientY;
+      this._rowMergeMode = false;
+      this._targetRowIndex = -1;
 
       if (type === 'move' || type === 'resize-left' || type === 'resize-right') {
         this.originalStartDate = target.startDate;
@@ -1713,14 +1715,38 @@
       if (!this.isDragging) return;
 
       var deltaX = e.clientX - this.startX;
+      var deltaY = e.clientY - this.startY;
       var daysDelta = Math.round(deltaX / GanttView.cellWidth * this._daysPerCell());
 
       if (this.dragType === 'move') {
-        var newStart = this._addDays(this.originalStartDate, daysDelta);
-        var newEnd = this._addDays(this.originalEndDate, daysDelta);
-        this.tooltip.textContent = newStart + ' ~ ' + newEnd;
-        this.dragTarget._tempStart = newStart;
-        this.dragTarget._tempEnd = newEnd;
+        // Detect vertical drag intent for row merge
+        if (Math.abs(deltaY) > 18) {
+          this._rowMergeMode = true;
+          var barTop = parseFloat(this.dragElement.style.top);
+          var targetRowIndex = Math.max(0, Math.round((barTop + deltaY) / 36));
+          this._targetRowIndex = targetRowIndex;
+
+          // Highlight target row
+          document.querySelectorAll('.gantt-row').forEach(function(row) {
+            row.style.background = '';
+          });
+          var targetRow = document.querySelector('.gantt-row[data-row-index="' + targetRowIndex + '"]');
+          if (targetRow) {
+            targetRow.style.background = 'rgba(74, 144, 217, 0.1)';
+          }
+          this.tooltip.textContent = '移动到行 ' + (targetRowIndex + 1);
+        } else {
+          this._rowMergeMode = false;
+          // Clear row highlights
+          document.querySelectorAll('.gantt-row').forEach(function(row) {
+            row.style.background = '';
+          });
+          var newStart = this._addDays(this.originalStartDate, daysDelta);
+          var newEnd = this._addDays(this.originalEndDate, daysDelta);
+          this.tooltip.textContent = newStart + ' ~ ' + newEnd;
+          this.dragTarget._tempStart = newStart;
+          this.dragTarget._tempEnd = newEnd;
+        }
       } else if (this.dragType === 'resize-left') {
         var newStart = this._addDays(this.originalStartDate, daysDelta);
         if (newStart >= this.originalEndDate) return;
@@ -1746,8 +1772,16 @@
 
       var target = this.dragTarget;
 
+      // Clear row highlights
+      document.querySelectorAll('.gantt-row').forEach(function(row) {
+        row.style.background = '';
+      });
+
       if (this.dragType === 'move') {
-        if (target._tempStart && target._tempEnd) {
+        if (this._rowMergeMode && this._targetRowIndex >= 0) {
+          // Row merge logic
+          this._handleRowMerge(target, this._targetRowIndex);
+        } else if (target._tempStart && target._tempEnd) {
           TaskManager.updateTask(target.id, { startDate: target._tempStart, endDate: target._tempEnd });
         }
       } else if (this.dragType === 'resize-left') {
@@ -1803,6 +1837,74 @@
       this.tooltip = null;
       document.body.style.userSelect = '';
       document.body.style.cursor = '';
+    },
+
+    _handleRowMerge: function(task, targetRowIndex) {
+      // Build current row layout to find what's at the target row
+      var allTasks = TaskManager.getAllTasks();
+      var leafTasks = allTasks.filter(function(t) {
+        return TaskManager.getChildren(t.id).length === 0;
+      });
+      var rows = GanttView._buildRows(leafTasks);
+
+      // Find current row of dragged task
+      var currentRowIndex = -1;
+      for (var i = 0; i < rows.length; i++) {
+        for (var j = 0; j < rows[i].length; j++) {
+          if (rows[i][j].id === task.id) {
+            currentRowIndex = i;
+            break;
+          }
+        }
+        if (currentRowIndex >= 0) break;
+      }
+
+      if (currentRowIndex === targetRowIndex || targetRowIndex >= rows.length) {
+        // Same row or out of bounds — no-op
+        return;
+      }
+
+      var targetRow = rows[targetRowIndex];
+      if (!targetRow || targetRow.length === 0) return;
+
+      // Check time overlap with all tasks in target row
+      var taskRange = TaskManager.getDateRange(task);
+      if (!taskRange.startDate || !taskRange.endDate) return;
+
+      var hasOverlap = false;
+      targetRow.forEach(function(other) {
+        if (other.id === task.id) return;
+        var otherRange = TaskManager.getDateRange(other);
+        if (!otherRange.startDate || !otherRange.endDate) return;
+        if (taskRange.startDate <= otherRange.endDate && taskRange.endDate >= otherRange.startDate) {
+          hasOverlap = true;
+        }
+      });
+
+      if (hasOverlap) {
+        // Time overlap — cannot merge, bounce back
+        this.tooltip.textContent = '时间重叠，无法合并';
+        return;
+      }
+
+      // Merge: assign same ganttRow value as the target row's first task
+      var targetGanttRow = targetRow[0].ganttRow;
+      if (targetGanttRow === null || targetGanttRow === undefined) {
+        // Target row doesn't have a ganttRow yet — assign a new value
+        targetGanttRow = Date.now();
+        targetRow.forEach(function(t) {
+          TaskManager.updateTask(t.id, { ganttRow: targetGanttRow });
+        });
+      }
+
+      // If dragged task was sharing a row and is the only one left, clear its old row's ganttRow
+      if (rows[currentRowIndex].length === 1) {
+        // Only task in its row — just set its ganttRow to merge
+        TaskManager.updateTask(task.id, { ganttRow: targetGanttRow });
+      } else {
+        // Was sharing a row — detach from old row and join new one
+        TaskManager.updateTask(task.id, { ganttRow: targetGanttRow });
+      }
     },
 
     _daysPerCell: function() {
@@ -2124,7 +2226,7 @@
       var self = this;
       var task = TaskManager.getTask(taskId);
       if (!task) return;
-      ModalManager.confirm('确定要删除任务「' + _escapeHtml(task.name) + '」及其所有子任务吗？', function() {
+      ModalManager.confirm('确定要删除任务「' + task.name + '」及其所有子任务吗？', function() {
         TaskManager.deleteTask(taskId);
         self.renderAll();
       });
@@ -2183,7 +2285,7 @@
       var self = this;
       var milestone = TaskManager.data.milestones.find(function(m) { return m.id === milestoneId; });
       if (!milestone) return;
-      ModalManager.confirm('确定要删除里程碑「' + _escapeHtml(milestone.name) + '」吗？', function() {
+      ModalManager.confirm('确定要删除里程碑「' + milestone.name + '」吗？', function() {
         TaskManager.deleteMilestone(milestoneId);
         self.renderAll();
       });
