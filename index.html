@@ -1852,23 +1852,39 @@
       var ghost = document.createElement('div');
       ghost.className = 'drag-ghost';
 
+      var bgColor = element.style.background || getComputedStyle(element).backgroundColor;
+
       if (type === 'milestone') {
         ghost.innerHTML = '<span class="drag-ghost-milestone">' + _escapeHtml(element.textContent) + '</span>';
         ghost.style.width = rect.width + 'px';
         ghost.style.height = rect.height + 'px';
-      } else {
-        var bgColor = element.style.background || getComputedStyle(element).backgroundColor;
+        ghost.style.left = rect.left + 'px';
+        ghost.style.top = rect.top + 'px';
+        this._ghostOffsetX = this.startX - rect.left;
+        this._ghostOffsetY = this.startY - rect.top;
+      } else if (type === 'move') {
         ghost.innerHTML = '<div class="drag-ghost-bar" style="background:' + bgColor + ';width:' + rect.width + 'px;">' + _escapeHtml(element.textContent) + '</div>';
+        ghost.style.left = rect.left + 'px';
+        ghost.style.top = rect.top + 'px';
+        this._ghostOffsetX = this.startX - rect.left;
+        this._ghostOffsetY = this.startY - rect.top;
+      } else {
+        // resize-left or resize-right: ghost stays fixed, only width changes
+        ghost.innerHTML = '<div class="drag-ghost-bar" style="background:' + bgColor + ';width:' + rect.width + 'px;">' + _escapeHtml(element.textContent) + '</div>';
+        ghost.style.left = rect.left + 'px';
+        ghost.style.top = rect.top + 'px';
+        ghost.style.width = rect.width + 'px';
+        ghost.style.height = rect.height + 'px';
+        this._ghostFixedLeft = rect.left;
+        this._ghostOriginalWidth = rect.width;
+        // No offset for resize - ghost stays in place
+        this._ghostOffsetX = 0;
+        this._ghostOffsetY = 0;
       }
-
-      ghost.style.left = rect.left + 'px';
-      ghost.style.top = rect.top + 'px';
 
       document.body.appendChild(ghost);
 
       this._ghost = ghost;
-      this._ghostOffsetX = this.startX - rect.left;
-      this._ghostOffsetY = this.startY - rect.top;
     },
 
     _updateSnapLine: function(dateStr) {
@@ -1911,14 +1927,32 @@
       var deltaY = e.clientY - this.startY;
       var daysDelta = Math.round(deltaX / GanttView.cellWidth * this._daysPerCell());
 
-      // Update ghost position
+      // Update ghost position/width
       if (this._ghost) {
         if (this.dragType === 'milestone') {
           // Milestone: horizontal only
           this._ghost.style.left = (e.clientX - this._ghostOffsetX) + 'px';
-        } else {
+        } else if (this.dragType === 'move') {
+          // Move: entire bar follows mouse
           this._ghost.style.left = (e.clientX - this._ghostOffsetX) + 'px';
           this._ghost.style.top = (e.clientY - this._ghostOffsetY) + 'px';
+        } else if (this.dragType === 'resize-left') {
+          // Resize left: keep right edge fixed, adjust left and width
+          var newWidth = this._ghostOriginalWidth - deltaX;
+          if (newWidth >= 20) {
+            this._ghost.style.left = (this._ghostFixedLeft + deltaX) + 'px';
+            this._ghost.style.width = newWidth + 'px';
+            var bar = this._ghost.querySelector('.drag-ghost-bar');
+            if (bar) bar.style.width = newWidth + 'px';
+          }
+        } else if (this.dragType === 'resize-right') {
+          // Resize right: keep left edge fixed, adjust width
+          var newWidth = this._ghostOriginalWidth + deltaX;
+          if (newWidth >= 20) {
+            this._ghost.style.width = newWidth + 'px';
+            var bar = this._ghost.querySelector('.drag-ghost-bar');
+            if (bar) bar.style.width = newWidth + 'px';
+          }
         }
       }
 
