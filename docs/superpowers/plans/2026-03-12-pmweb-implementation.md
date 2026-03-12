@@ -432,6 +432,8 @@ const ProjectManager = {
       id: DataStore.uuid(),
       projectId,
       name: name.trim(),
+      description: '',
+      assignee: '',
       startDate,
       endDate,
       status: 'todo',
@@ -452,6 +454,8 @@ const ProjectManager = {
       return null;
     }
     if (updates.name !== undefined) task.name = updates.name.trim();
+    if (updates.description !== undefined) task.description = updates.description;
+    if (updates.assignee !== undefined) task.assignee = updates.assignee.trim();
     if (updates.startDate !== undefined) task.startDate = updates.startDate;
     if (updates.endDate !== undefined) task.endDate = updates.endDate;
     if (updates.status !== undefined) task.status = updates.status;
@@ -771,6 +775,8 @@ const ModalManager = {
     const isEdit = !!task;
     const title = isEdit ? '编辑任务' : '新建任务';
     const name = isEdit ? task.name : '';
+    const description = isEdit ? (task.description || '') : '';
+    const assignee = isEdit ? (task.assignee || '') : '';
     const startDate = isEdit ? task.startDate : DataStore.formatDate(new Date());
     const endDate = isEdit ? task.endDate : DataStore.formatDate(new Date(Date.now() + 7 * 86400000));
     const status = isEdit ? task.status : 'todo';
@@ -780,6 +786,14 @@ const ModalManager = {
       <div class="modal-field">
         <label>任务名称</label>
         <input type="text" id="modal-task-name" value="${name}" placeholder="请输入任务名称">
+      </div>
+      <div class="modal-field">
+        <label>负责人</label>
+        <input type="text" id="modal-task-assignee" value="${assignee}" placeholder="请输入负责人（可选）">
+      </div>
+      <div class="modal-field">
+        <label>描述/备注</label>
+        <textarea id="modal-task-desc" rows="3" style="width:100%;padding:8px 10px;border:1px solid var(--color-border);border-radius:4px;font-size:14px;resize:vertical;" placeholder="请输入描述（可选）">${description}</textarea>
       </div>
       <div class="modal-field">
         <label>开始日期</label>
@@ -805,13 +819,15 @@ const ModalManager = {
 
     document.getElementById('modal-save-btn').addEventListener('click', () => {
       const nameVal = document.getElementById('modal-task-name').value.trim();
+      const descVal = document.getElementById('modal-task-desc').value;
+      const assigneeVal = document.getElementById('modal-task-assignee').value.trim();
       const startVal = document.getElementById('modal-task-start').value;
       const endVal = document.getElementById('modal-task-end').value;
       const statusVal = document.getElementById('modal-task-status').value;
       if (!nameVal) { alert('请输入任务名称'); return; }
       if (!startVal || !endVal) { alert('请选择日期'); return; }
       this.close();
-      onSave({ name: nameVal, startDate: startVal, endDate: endVal, status: statusVal, projectId });
+      onSave({ name: nameVal, description: descVal, assignee: assigneeVal, startDate: startVal, endDate: endVal, status: statusVal, projectId });
     });
   },
 
@@ -1047,6 +1063,7 @@ const TreeView = {
         html += `<div class="tree-task${selected}" data-task-id="${task.id}" data-project-id="${project.id}">`;
         html += `<span class="status-icon" style="color:${statusColor}">${statusIcon}</span>`;
         html += `<span class="task-name">${this._escapeHtml(task.name)}</span>`;
+        if (task.assignee) html += `<span style="font-size:11px;color:var(--color-text-light);flex-shrink:0;">${this._escapeHtml(task.assignee)}</span>`;
         html += `</div>`;
 
         // 任务级里程碑
@@ -1495,7 +1512,8 @@ const GanttView = {
         const barX = this._dateToX(task.startDate);
         const barW = this._dateRangeToWidth(task.startDate, task.endDate);
         const statusCls = task.status === 'done' ? ' status-done' : '';
-        bodyHtml += `<div class="gantt-bar${statusCls}" style="left:${barX}px;width:${barW}px;background:${project.color};" data-task-id="${task.id}" title="${this._escapeHtml(task.name)} (${task.startDate} ~ ${task.endDate})">${this._escapeHtml(task.name)}</div>`;
+        const assigneeText = task.assignee ? ` [${this._escapeHtml(task.assignee)}]` : '';
+        bodyHtml += `<div class="gantt-bar${statusCls}" style="left:${barX}px;width:${barW}px;background:${project.color};" data-task-id="${task.id}" title="${this._escapeHtml(task.name)}${assigneeText} (${task.startDate} ~ ${task.endDate})">${this._escapeHtml(task.name)}</div>`;
 
         // 任务级里程碑
         const taskMilestones = ProjectManager.getMilestonesByTask(task.id);
@@ -2009,7 +2027,10 @@ const App = {
   // -- 任务操作 --
   showAddTask(projectId) {
     ModalManager.showTaskForm(null, projectId, (data) => {
-      ProjectManager.addTask(data.projectId, data.name, data.startDate, data.endDate);
+      const t = ProjectManager.addTask(data.projectId, data.name, data.startDate, data.endDate);
+      if (t) {
+        ProjectManager.updateTask(t.id, { description: data.description, assignee: data.assignee });
+      }
       this.renderAll();
     });
   },

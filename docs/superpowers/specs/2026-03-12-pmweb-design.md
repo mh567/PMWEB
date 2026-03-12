@@ -28,6 +28,8 @@ Task (任务)
 ├── id: string (UUID)
 ├── projectId: string
 ├── name: string
+├── description: string (备注/描述，可为空)
+├── assignee: string (负责人，可为空)
 ├── startDate: string (YYYY-MM-DD)
 ├── endDate: string (YYYY-MM-DD)
 ├── status: string ("todo" | "inProgress" | "done")
