@@ -152,103 +152,10 @@
       color: var(--color-text);
     }
 
-    #btn-add-project {
-      width: 26px;
-      height: 26px;
-      border-radius: 4px;
-      border: 1px solid var(--color-border);
-      background: var(--color-surface);
-      color: var(--color-primary);
-      font-size: 18px;
-      line-height: 1;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: inherit;
-      transition: background 0.15s;
-    }
-
-    #btn-add-project:hover {
-      background: var(--color-primary);
-      color: #ffffff;
-      border-color: var(--color-primary);
-    }
-
     #tree-container {
       flex: 1;
       padding: 8px 0;
-    }
-
-    .project-item {
-      display: flex;
-      align-items: center;
-      padding: 8px 14px;
-      cursor: pointer;
-      border-left: 3px solid transparent;
-      transition: background 0.1s;
-      gap: 8px;
-    }
-
-    .project-item:hover {
-      background: var(--color-bg);
-    }
-
-    .project-item.active {
-      background: #eaf2fb;
-      border-left-color: var(--color-primary);
-    }
-
-    .project-color-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    .project-name {
-      flex: 1;
-      font-size: 13px;
-      color: var(--color-text);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .project-actions {
-      display: none;
-      gap: 4px;
-    }
-
-    .project-item:hover .project-actions {
-      display: flex;
-    }
-
-    .project-action-btn {
-      width: 20px;
-      height: 20px;
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      font-size: 12px;
-      color: var(--color-text-light);
-      border-radius: 3px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: inherit;
-    }
-
-    .project-action-btn:hover {
-      background: var(--color-border);
-      color: var(--color-text);
-    }
-
-    #sidebar-empty {
-      padding: 24px 14px;
-      text-align: center;
-      color: var(--color-text-light);
-      font-size: 13px;
+      overflow-y: auto;
     }
 
     /* ===== CONTENT AREA ===== */
@@ -356,69 +263,73 @@
     }
 
     /* == 树形列表 == */
-    .tree-project {
-      border-bottom: 1px solid var(--color-border);
+    .tree-node {
+      position: relative;
     }
-    .tree-project-header {
+    .tree-node-row {
       display: flex;
       align-items: center;
-      padding: 8px 16px;
+      padding: 6px 8px;
       cursor: pointer;
       font-size: 13px;
-      font-weight: 600;
-      gap: 6px;
+      gap: 4px;
+      position: relative;
     }
-    .tree-project-header:hover { background: #f5f5f5; }
-    .tree-project-header .arrow {
+    .tree-node-row:hover { background: #f0f4ff; }
+    .tree-node-row.selected { background: #e3ecfa; }
+    .tree-node-row.highlighted { background: #fff3cd; }
+    .tree-node-row .arrow {
       font-size: 10px;
-      transition: transform 0.15s;
+      width: 16px;
+      text-align: center;
       color: var(--color-text-light);
+      flex-shrink: 0;
+      transition: transform 0.15s;
     }
-    .tree-project-header .arrow.collapsed { transform: rotate(-90deg); }
-    .tree-project-header .color-dot {
-      width: 10px; height: 10px;
+    .tree-node-row .arrow.collapsed { transform: rotate(-90deg); }
+    .tree-node-row .arrow.empty { visibility: hidden; }
+    .tree-node-row .color-dot {
+      width: 8px; height: 8px;
       border-radius: 50%;
       flex-shrink: 0;
     }
-    .tree-project-tasks {
-      overflow: hidden;
-    }
-    .tree-project-tasks.collapsed {
-      display: none;
-    }
-    .tree-task {
-      display: flex;
-      align-items: center;
-      padding: 6px 16px 6px 36px;
-      cursor: pointer;
-      font-size: 13px;
-      gap: 6px;
-    }
-    .tree-task:hover { background: #f0f4ff; }
-    .tree-task.selected { background: #e3ecfa; }
-    .tree-task .status-icon {
-      font-size: 11px;
-      flex-shrink: 0;
-    }
-    .tree-task .task-name {
+    .tree-node-row .node-name {
       flex: 1;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .tree-milestone-list {
-      padding-left: 48px;
+    .tree-node-row .status-icon {
+      font-size: 11px;
+      flex-shrink: 0;
     }
-    .tree-milestone {
-      display: flex;
-      align-items: center;
-      padding: 3px 16px 3px 0;
-      font-size: 12px;
-      color: var(--color-text-light);
-      gap: 4px;
+    .tree-node-row .node-actions {
+      display: none;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+    .tree-node-row:hover .node-actions { display: flex; }
+    .tree-node-row .node-actions button {
+      padding: 0 4px;
+      border: none;
+      background: transparent;
       cursor: pointer;
+      font-size: 14px;
+      color: var(--color-text-light);
+      border-radius: 3px;
     }
-    .tree-milestone:hover { color: var(--color-text); }
+    .tree-node-row .node-actions button:hover {
+      background: var(--color-border);
+      color: var(--color-text);
+    }
+    .tree-children {
+      overflow: hidden;
+    }
+    .tree-children.collapsed { display: none; }
+    /* Indentation per depth level */
+    .tree-node[data-depth="0"] > .tree-node-row { padding-left: 8px; }
+    .tree-node[data-depth="1"] > .tree-node-row { padding-left: 28px; }
+    .tree-node[data-depth="2"] > .tree-node-row { padding-left: 48px; }
 
     /* == 右键菜单 == */
     .context-menu {
@@ -504,22 +415,41 @@
     }
     .gantt-bar:hover { filter: brightness(1.1); }
     .gantt-bar.status-done { opacity: 0.6; }
+    .gantt-bar.highlight {
+      filter: brightness(1.2);
+      box-shadow: 0 0 8px rgba(74, 144, 217, 0.6);
+      z-index: 4;
+    }
+    .gantt-bar.selected {
+      box-shadow: 0 0 0 2px var(--color-primary), 0 0 12px rgba(74, 144, 217, 0.4);
+      z-index: 4;
+    }
     .gantt-milestone {
       position: absolute;
-      top: 6px;
-      width: 16px; height: 16px;
+      top: 4px;
+      width: 20px; height: 20px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 16px;
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 2;
-      transform: translateX(-8px);
+      z-index: 3;
+      transform: translateX(-10px);
+      color: #E74C3C;
+      filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff);
+      transition: transform 0.15s;
     }
-    .gantt-milestone:hover { transform: translateX(-8px) scale(1.3); }
-    .gantt-milestone-row {
-      height: 28px;
-      background: #fafafa;
+    .gantt-milestone:hover { transform: translateX(-10px) scale(1.3); }
+    .gantt-drag-tooltip {
+      position: fixed;
+      background: rgba(0,0,0,0.8);
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      pointer-events: none;
+      z-index: 100;
+      white-space: nowrap;
     }
     .gantt-today-line {
       position: absolute;
@@ -624,9 +554,17 @@
       align-items: center;
       gap: 2px;
       cursor: pointer;
-      color: var(--color-text);
+      color: #E74C3C;
+      font-weight: 600;
     }
-    .calendar-milestone-item:hover { font-weight: 600; }
+    .calendar-milestone-item:hover { text-decoration: underline; }
+    .calendar-task-bar.highlight {
+      filter: brightness(1.3);
+      box-shadow: 0 0 4px rgba(74, 144, 217, 0.5);
+    }
+    .calendar-task-bar.selected {
+      box-shadow: 0 0 0 1px var(--color-primary);
+    }
   </style>
 </head>
 <body>
@@ -635,22 +573,21 @@
   <div id="toolbar">
     <span class="toolbar-title">PMWEB</span>
     <div class="toolbar-sep"></div>
-    <button class="btn" id="btn-project-manager">项目管理</button>
-    <button class="btn" id="btn-import">导入</button>
-    <button class="btn" id="btn-export">导出</button>
+    <div class="toolbar-group">
+      <button class="btn" id="btn-import">导入</button>
+      <button class="btn" id="btn-export">导出</button>
+    </div>
     <div class="toolbar-sep"></div>
     <div class="btn-group" id="view-toggle-group">
-      <button class="btn active" id="btn-view-gantt" data-view="gantt">甘特图</button>
-      <button class="btn" id="btn-view-calendar" data-view="calendar">日历</button>
+      <button class="btn active" id="btn-view-gantt">甘特图</button>
+      <button class="btn" id="btn-view-calendar">日历</button>
     </div>
     <div class="toolbar-sep"></div>
     <div class="btn-group" id="granularity-group">
-      <button class="btn" id="btn-granularity-year" data-gran="year">年</button>
-      <button class="btn active" id="btn-granularity-month" data-gran="month">月</button>
-      <button class="btn" id="btn-granularity-week" data-gran="week">周</button>
+      <button class="btn" id="btn-granularity-year">年</button>
+      <button class="btn active" id="btn-granularity-month">月</button>
+      <button class="btn" id="btn-granularity-week">周</button>
     </div>
-    <div class="spacer"></div>
-    <button class="btn btn-primary" id="btn-add-task">+ 新建任务</button>
   </div>
 
   <!-- MAIN CONTAINER -->
@@ -660,10 +597,10 @@
     <div id="sidebar">
       <div id="sidebar-header">
         <h2>任务列表</h2>
-        <button id="btn-add-project" title="新建项目">+</button>
       </div>
-      <div id="tree-container">
-        <div id="sidebar-empty">暂无项目，点击 + 新建</div>
+      <div id="tree-container"></div>
+      <div id="sidebar-footer" style="padding:8px 12px;border-top:1px solid var(--color-border);flex-shrink:0;">
+        <button class="btn btn-primary" id="btn-add-root-task" style="width:100%;padding:8px;">+ 新建顶层任务</button>
       </div>
     </div>
 
@@ -676,9 +613,9 @@
 
   <!-- STATUS BAR -->
   <div id="status-bar">
-    <span class="status-item" id="status-text">0 个项目 · 0 个任务（进行中 0，已完成 0）</span>
+    <span class="status-item" id="status-text">0 个任务</span>
     <span class="spacer" style="flex:1"></span>
-    <span class="status-item" id="status-info">PMWEB v1.0</span>
+    <span class="status-item" id="status-info">PMWEB v2.0</span>
   </div>
 
   <!-- MODAL OVERLAY -->
@@ -688,35 +625,34 @@
 
   <script>
   // ============================================================
-  // DataStore — localStorage persistence + JSON import/export
+  // DataStore — localStorage persistence + JSON import/export (v2)
   // ============================================================
   const DataStore = {
     STORAGE_KEY: 'pmweb_data',
+    CURRENT_VERSION: 2,
 
-    createEmpty() {
+    createEmpty: function() {
       return {
-        version: 1,
-        projects: [],
+        pmweb_version: this.CURRENT_VERSION,
         tasks: [],
         milestones: [],
         settings: { lastView: 'gantt', lastGranularity: 'month' }
       };
     },
 
-    load() {
+    load: function() {
       try {
-        const raw = localStorage.getItem(this.STORAGE_KEY);
+        var raw = localStorage.getItem(this.STORAGE_KEY);
         if (!raw) return this.createEmpty();
-        const data = JSON.parse(raw);
-        if (!data.version || !Array.isArray(data.projects)) return this.createEmpty();
-        return data;
+        var data = JSON.parse(raw);
+        return this.migrate(data);
       } catch (e) {
         console.error('DataStore.load failed:', e);
         return this.createEmpty();
       }
     },
 
-    save(data) {
+    save: function(data) {
       try {
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
       } catch (e) {
@@ -725,10 +661,12 @@
       }
     },
 
-    exportJSON(data) {
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
+    exportJSON: function(data) {
+      var exportData = JSON.parse(JSON.stringify(data));
+      exportData.exported_at = new Date().toISOString();
+      var blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
       a.href = url;
       a.download = 'pmweb-backup-' + new Date().toISOString().slice(0, 10) + '.json';
       document.body.appendChild(a);
@@ -737,18 +675,19 @@
       URL.revokeObjectURL(url);
     },
 
-    importJSON(file) {
+    importJSON: function(file) {
+      var self = this;
       return new Promise(function(resolve, reject) {
-        const reader = new FileReader();
+        var reader = new FileReader();
         reader.onload = function(e) {
           try {
-            const data = JSON.parse(e.target.result);
-            if (!data.version || !Array.isArray(data.projects) ||
-                !Array.isArray(data.tasks) || !Array.isArray(data.milestones)) {
-              reject(new Error('JSON 格式不正确：缺少必要字段'));
+            var data = JSON.parse(e.target.result);
+            if (!data.version && !data.pmweb_version) {
+              reject(new Error('JSON 格式不正确：缺少版本号'));
               return;
             }
-            resolve(data);
+            var migrated = self.migrate(data);
+            resolve(migrated);
           } catch (err) {
             reject(new Error('JSON 解析失败：文件内容无效'));
           }
@@ -758,264 +697,279 @@
       });
     },
 
-    // Use this instead of toISOString().slice(0,10) to avoid UTC timezone bugs
-    formatDate(d) {
+    migrate: function(data) {
+      var version = data.pmweb_version || data.version || 0;
+      if (version > this.CURRENT_VERSION) {
+        alert('数据版本过新（v' + version + '），请升级软件。当前支持最高版本：v' + this.CURRENT_VERSION);
+        return this.createEmpty();
+      }
+      if (version < 2) {
+        data = this._migrateV1toV2(data);
+      }
+      return data;
+    },
+
+    _migrateV1toV2: function(v1) {
+      var v2 = {
+        pmweb_version: 2,
+        tasks: [],
+        milestones: [],
+        settings: v1.settings || { lastView: 'gantt', lastGranularity: 'month' }
+      };
+      var projectIdMap = {};
+      var projects = v1.projects || [];
+      projects.forEach(function(p, i) {
+        var newId = DataStore.uuid();
+        projectIdMap[p.id] = newId;
+        v2.tasks.push({
+          id: newId, parentId: null, name: p.name, description: '', assignee: '',
+          color: p.color || '#4a90d9', startDate: null, endDate: null,
+          status: 'todo', order: i, ganttRow: null
+        });
+      });
+      var oldTasks = v1.tasks || [];
+      oldTasks.forEach(function(t) {
+        var parentId = projectIdMap[t.projectId] || null;
+        v2.tasks.push({
+          id: t.id, parentId: parentId, name: t.name,
+          description: t.description || '', assignee: t.assignee || '',
+          color: null, startDate: t.startDate, endDate: t.endDate,
+          status: t.status || 'todo', order: t.order || 0, ganttRow: null
+        });
+      });
+      var oldMilestones = v1.milestones || [];
+      oldMilestones.forEach(function(m) {
+        var taskId = m.taskId;
+        if (!taskId && m.projectId) {
+          taskId = projectIdMap[m.projectId] || null;
+        }
+        if (taskId) {
+          v2.milestones.push({
+            id: m.id, taskId: taskId, name: m.name, date: m.date, icon: m.icon || '◆'
+          });
+        }
+      });
+      return v2;
+    },
+
+    formatDate: function(d) {
       return d.getFullYear() + '-' +
         String(d.getMonth() + 1).padStart(2, '0') + '-' +
         String(d.getDate()).padStart(2, '0');
     },
 
-    uuid() {
+    uuid: function() {
       return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        const r = Math.random() * 16 | 0;
+        var r = Math.random() * 16 | 0;
         return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
       });
     }
   };
 
   // ============================================================
-  // ProjectManager — CRUD with validation
+  // == TaskManager: 统一任务树 CRUD (replaces ProjectManager)
   // ============================================================
-  const ProjectManager = {
-    COLORS: [
-      '#4a90d9', '#e67e22', '#2ecc71', '#9b59b6', '#e74c3c',
-      '#1abc9c', '#f39c12', '#3498db', '#e91e63', '#00bcd4',
-      '#8bc34a', '#ff5722'
-    ],
-
+  var TaskManager = {
     data: null,
+    COLORS: ['#4a90d9', '#e67e22', '#2ecc71', '#9b59b6', '#e74c3c', '#1abc9c', '#f39c12', '#3498db', '#e91e63', '#00bcd4', '#8bc34a', '#ff5722'],
 
-    init() {
+    init: function() {
       this.data = DataStore.load();
-      // Ensure arrays/settings exist for older stored formats
-      if (!Array.isArray(this.data.tasks)) this.data.tasks = [];
-      if (!Array.isArray(this.data.milestones)) this.data.milestones = [];
-      if (!this.data.settings) this.data.settings = { lastView: 'gantt', lastGranularity: 'month' };
     },
 
-    _save() {
+    _save: function() {
       DataStore.save(this.data);
     },
 
-    // ---- Projects ----
-
-    getProjects() {
-      return this.data.projects.slice().sort(function(a, b) {
-        return (a.order || 0) - (b.order || 0);
-      });
+    getDepth: function(taskId) {
+      var depth = 0;
+      var task = this.getTask(taskId);
+      while (task && task.parentId) {
+        depth++;
+        task = this.getTask(task.parentId);
+        if (depth > 3) break;
+      }
+      return depth;
     },
 
-    addProject(name) {
-      const existingCount = this.data.projects.length;
-      const color = this.COLORS[existingCount % this.COLORS.length];
-      const project = {
-        id: DataStore.uuid(),
-        name: name,
-        color: color,
-        order: existingCount,
-        createdAt: DataStore.formatDate(new Date())
-      };
-      this.data.projects.push(project);
-      this._save();
-      return project;
+    getTask: function(id) {
+      return this.data.tasks.find(function(t) { return t.id === id; }) || null;
     },
 
-    updateProject(id, updates) {
-      const project = this.data.projects.find(function(p) { return p.id === id; });
-      if (!project) return null;
-      if (updates.name !== undefined) project.name = updates.name;
-      if (updates.color !== undefined) project.color = updates.color;
-      if (updates.order !== undefined) project.order = updates.order;
-      this._save();
-      return project;
-    },
-
-    deleteProject(id) {
-      // Cascade: find all tasks belonging to this project
-      const taskIds = this.data.tasks
-        .filter(function(t) { return t.projectId === id; })
-        .map(function(t) { return t.id; });
-
-      // Remove milestones that belong to tasks of this project OR to the project directly
-      this.data.milestones = this.data.milestones.filter(function(m) {
-        if (m.projectId === id) return false;
-        if (m.taskId && taskIds.indexOf(m.taskId) !== -1) return false;
-        return true;
-      });
-
-      // Remove tasks
-      this.data.tasks = this.data.tasks.filter(function(t) { return t.projectId !== id; });
-
-      // Remove project
-      this.data.projects = this.data.projects.filter(function(p) { return p.id !== id; });
-
-      this._save();
-    },
-
-    // ---- Tasks ----
-
-    getTasksByProject(projectId) {
+    getRootTasks: function() {
       return this.data.tasks
-        .filter(function(t) { return t.projectId === projectId; })
-        .slice()
-        .sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+        .filter(function(t) { return t.parentId === null; })
+        .sort(function(a, b) { return a.order - b.order; });
     },
 
-    getAllTasks() {
+    getChildren: function(parentId) {
+      return this.data.tasks
+        .filter(function(t) { return t.parentId === parentId; })
+        .sort(function(a, b) { return a.order - b.order; });
+    },
+
+    getDescendants: function(taskId) {
+      var result = [];
+      var self = this;
+      var children = this.getChildren(taskId);
+      children.forEach(function(child) {
+        result.push(child);
+        result = result.concat(self.getDescendants(child.id));
+      });
+      return result;
+    },
+
+    getAllTasks: function() {
       return this.data.tasks.slice();
     },
 
-    addTask(projectId, name, startDate, endDate) {
-      if (endDate < startDate) {
-        alert('结束日期不能早于开始日期');
-        return null;
+    getEffectiveColor: function(task) {
+      if (task.color) return task.color;
+      if (task.parentId) {
+        var parent = this.getTask(task.parentId);
+        if (parent) return this.getEffectiveColor(parent);
       }
-      const existingCount = this.data.tasks.filter(function(t) { return t.projectId === projectId; }).length;
-      const task = {
-        id: DataStore.uuid(),
-        projectId: projectId,
-        name: name,
-        startDate: startDate,
-        endDate: endDate,
-        description: '',
-        assignee: '',
-        status: 'todo',
-        order: existingCount,
-        createdAt: DataStore.formatDate(new Date())
+      return '#4a90d9';
+    },
+
+    getDateRange: function(task) {
+      if (task.startDate && task.endDate) {
+        return { startDate: task.startDate, endDate: task.endDate };
+      }
+      var children = this.getChildren(task.id);
+      if (children.length === 0) {
+        return { startDate: null, endDate: null };
+      }
+      var minStart = null;
+      var maxEnd = null;
+      var self = this;
+      children.forEach(function(child) {
+        var range = self.getDateRange(child);
+        if (range.startDate) {
+          if (!minStart || range.startDate < minStart) minStart = range.startDate;
+        }
+        if (range.endDate) {
+          if (!maxEnd || range.endDate > maxEnd) maxEnd = range.endDate;
+        }
+      });
+      return { startDate: minStart, endDate: maxEnd };
+    },
+
+    addTask: function(parentId, name) {
+      if (parentId) {
+        var depth = this.getDepth(parentId);
+        if (depth >= 2) {
+          alert('最多支持 3 层任务');
+          return null;
+        }
+      }
+      var siblings = parentId ? this.getChildren(parentId) : this.getRootTasks();
+      var color = null;
+      if (!parentId) {
+        color = this.COLORS[this.data.tasks.filter(function(t) { return t.parentId === null; }).length % this.COLORS.length];
+      }
+      var today = DataStore.formatDate(new Date());
+      var weekLater = DataStore.formatDate(new Date(Date.now() + 7 * 86400000));
+      var task = {
+        id: DataStore.uuid(), parentId: parentId, name: name.trim(),
+        description: '', assignee: '', color: color,
+        startDate: today, endDate: weekLater, status: 'todo',
+        order: siblings.length, ganttRow: null
       };
       this.data.tasks.push(task);
       this._save();
       return task;
     },
 
-    updateTask(id, updates) {
-      const task = this.data.tasks.find(function(t) { return t.id === id; });
+    updateTask: function(id, updates) {
+      var task = this.getTask(id);
       if (!task) return null;
-
-      const newStart = updates.startDate !== undefined ? updates.startDate : task.startDate;
-      const newEnd = updates.endDate !== undefined ? updates.endDate : task.endDate;
-
-      if (newEnd < newStart) {
+      var newStart = updates.startDate !== undefined ? updates.startDate : task.startDate;
+      var newEnd = updates.endDate !== undefined ? updates.endDate : task.endDate;
+      if (newStart && newEnd && newEnd < newStart) {
         alert('结束日期不能早于开始日期');
         return null;
       }
-
-      var allowed = ['name', 'description', 'assignee', 'startDate', 'endDate', 'status', 'order'];
+      var allowed = ['name', 'description', 'assignee', 'color', 'startDate', 'endDate', 'status', 'order', 'ganttRow'];
       for (var i = 0; i < allowed.length; i++) {
         var key = allowed[i];
-        if (updates[key] !== undefined) task[key] = updates[key];
+        if (updates[key] !== undefined) {
+          task[key] = updates[key];
+        }
       }
+      if (updates.name !== undefined) task.name = task.name.trim();
+      if (updates.assignee !== undefined && task.assignee) task.assignee = task.assignee.trim();
       this._save();
       return task;
     },
 
-    deleteTask(id) {
-      // Remove milestones belonging to this task
-      this.data.milestones = this.data.milestones.filter(function(m) { return m.taskId !== id; });
-      // Remove task
-      this.data.tasks = this.data.tasks.filter(function(t) { return t.id !== id; });
+    deleteTask: function(id) {
+      var descendants = this.getDescendants(id);
+      var idsToDelete = [id];
+      descendants.forEach(function(d) { idsToDelete.push(d.id); });
+      this.data.milestones = this.data.milestones.filter(function(m) {
+        return idsToDelete.indexOf(m.taskId) === -1;
+      });
+      this.data.tasks = this.data.tasks.filter(function(t) {
+        return idsToDelete.indexOf(t.id) === -1;
+      });
       this._save();
     },
 
-    // ---- Milestones ----
-
-    getMilestonesByTask(taskId) {
+    getMilestonesByTask: function(taskId) {
       return this.data.milestones
         .filter(function(m) { return m.taskId === taskId; })
-        .slice()
-        .sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+        .sort(function(a, b) { return a.date.localeCompare(b.date); });
     },
 
-    getMilestonesByProject(projectId) {
-      // Project-level only: no taskId
-      return this.data.milestones
-        .filter(function(m) { return m.projectId === projectId && !m.taskId; })
-        .slice()
-        .sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
-    },
-
-    getAllMilestones() {
+    getAllMilestones: function() {
       return this.data.milestones.slice();
     },
 
-    addMilestone(name, date, icon, context) {
-      // context: { taskId, projectId } — one must be non-null
-      var taskId = context.taskId || null;
-      var projectId = context.projectId || null;
-
-      if (taskId) {
-        // Validate date within task range
-        const task = this.data.tasks.find(function(t) { return t.id === taskId; });
-        if (task) {
-          if (date < task.startDate || date > task.endDate) {
-            alert('里程碑日期必须在任务日期范围内（' + task.startDate + ' 至 ' + task.endDate + '）');
+    addMilestone: function(taskId, name, date, icon) {
+      var task = this.getTask(taskId);
+      if (task) {
+        var range = this.getDateRange(task);
+        if (range.startDate && range.endDate) {
+          if (date < range.startDate || date > range.endDate) {
+            alert('里程碑日期必须在任务的时间范围内');
             return null;
           }
         }
-        projectId = null; // mutually exclusive
-      } else {
-        taskId = null;
       }
-
-      const milestone = {
-        id: DataStore.uuid(),
-        name: name,
-        date: date,
-        icon: icon || '◆',
-        taskId: taskId,
-        projectId: projectId,
-        createdAt: DataStore.formatDate(new Date())
+      var milestone = {
+        id: DataStore.uuid(), taskId: taskId, name: name.trim(), date: date, icon: icon || '◆'
       };
       this.data.milestones.push(milestone);
       this._save();
       return milestone;
     },
 
-    updateMilestone(id, updates) {
-      const milestone = this.data.milestones.find(function(m) { return m.id === id; });
+    updateMilestone: function(id, updates) {
+      var milestone = this.data.milestones.find(function(m) { return m.id === id; });
       if (!milestone) return null;
-
-      const newDate = updates.date !== undefined ? updates.date : milestone.date;
-
-      // If task-level, validate date range
-      if (milestone.taskId) {
-        const task = this.data.tasks.find(function(t) { return t.id === milestone.taskId; });
-        if (task) {
-          if (newDate < task.startDate || newDate > task.endDate) {
-            alert('里程碑日期必须在任务日期范围内（' + task.startDate + ' 至 ' + task.endDate + '）');
-            return null;
-          }
-        }
-      }
-
-      var allowed = ['name', 'date', 'icon'];
-      for (var i = 0; i < allowed.length; i++) {
-        var key = allowed[i];
-        if (updates[key] !== undefined) milestone[key] = updates[key];
-      }
+      if (updates.name !== undefined) milestone.name = updates.name.trim();
+      if (updates.date !== undefined) milestone.date = updates.date;
+      if (updates.icon !== undefined) milestone.icon = updates.icon;
       this._save();
       return milestone;
     },
 
-    deleteMilestone(id) {
+    deleteMilestone: function(id) {
       this.data.milestones = this.data.milestones.filter(function(m) { return m.id !== id; });
       this._save();
     },
 
-    // ---- Settings ----
-
-    getSetting(key) {
+    getSetting: function(key) {
       return this.data.settings[key];
     },
 
-    setSetting(key, value) {
+    setSetting: function(key, value) {
       this.data.settings[key] = value;
       this._save();
     },
 
-    // ---- Import ----
-
-    replaceData(newData) {
+    replaceData: function(newData) {
       this.data = newData;
       this._save();
     }
@@ -1028,25 +982,25 @@
     overlay: null,
     content: null,
 
-    init() {
+    init: function() {
       this.overlay = document.getElementById('modal-overlay');
       this.content = document.getElementById('modal-box');
-      this.overlay.addEventListener('click', (e) => {
-        if (e.target === this.overlay) this.close();
+      this.overlay.addEventListener('click', function(e) {
+        if (e.target === ModalManager.overlay) ModalManager.close();
       });
     },
 
-    open(html) {
+    open: function(html) {
       this.content.innerHTML = html;
       this.overlay.classList.add('active');
     },
 
-    close() {
+    close: function() {
       this.overlay.classList.remove('active');
       this.content.innerHTML = '';
     },
 
-    confirm(message, onConfirm) {
+    confirm: function(message, onConfirm) {
       this.open(
         '<div class="modal-title">确认</div>'
         + '<p style="margin-bottom:16px;font-size:14px;">' + message + '</p>'
@@ -1061,52 +1015,7 @@
       });
     },
 
-    showProjectForm(project, onSave) {
-      var isEdit = !!project;
-      var title = isEdit ? '编辑项目' : '新建项目';
-      var name = isEdit ? project.name : '';
-      var color = isEdit ? project.color : ProjectManager.COLORS[ProjectManager.data.projects.length % ProjectManager.COLORS.length];
-
-      var swatchesHtml = ProjectManager.COLORS.map(function(c) {
-        return '<span class="color-swatch' + (c === color ? ' selected' : '') + '" data-color="' + c + '" style="display:inline-block;width:24px;height:24px;border-radius:50%;cursor:pointer;margin:2px;border:2px solid ' + (c === color ? '#333' : 'transparent') + ';background:' + c + '"></span>';
-      }).join('');
-
-      this.open(
-        '<div class="modal-title">' + title + '</div>'
-        + '<div class="modal-field"><label>项目名称</label>'
-        + '<input type="text" id="modal-project-name" value="' + _escapeHtml(name) + '" placeholder="请输入项目名称"></div>'
-        + '<div class="modal-field"><label>项目颜色</label>'
-        + '<div id="modal-color-picker">' + swatchesHtml + '</div></div>'
-        + '<div class="modal-actions">'
-        + '<button onclick="ModalManager.close()">取消</button>'
-        + '<button class="btn-primary" id="modal-save-btn">保存</button>'
-        + '</div>'
-      );
-
-      var pickedColor = color;
-      document.querySelectorAll('#modal-color-picker .color-swatch').forEach(function(sw) {
-        sw.addEventListener('click', function() {
-          document.querySelectorAll('#modal-color-picker .color-swatch').forEach(function(s) {
-            s.style.borderColor = 'transparent';
-            s.classList.remove('selected');
-          });
-          sw.style.borderColor = '#333';
-          sw.classList.add('selected');
-          pickedColor = sw.dataset.color;
-        });
-      });
-
-      document.getElementById('modal-save-btn').addEventListener('click', function() {
-        var nameVal = document.getElementById('modal-project-name').value.trim();
-        if (!nameVal) { alert('请输入项目名称'); return; }
-        ModalManager.close();
-        onSave({ name: nameVal, color: pickedColor });
-      });
-
-      document.getElementById('modal-project-name').focus();
-    },
-
-    showTaskForm(task, projectId, onSave) {
+    showTaskForm: function(task, parentId, onSave) {
       var isEdit = !!task;
       var title = isEdit ? '编辑任务' : '新建任务';
       var name = isEdit ? task.name : '';
@@ -1150,13 +1059,13 @@
         if (!nameVal) { alert('请输入任务名称'); return; }
         if (!startVal || !endVal) { alert('请选择日期'); return; }
         ModalManager.close();
-        onSave({ name: nameVal, description: descVal, assignee: assigneeVal, startDate: startVal, endDate: endVal, status: statusVal, projectId: projectId });
+        onSave({ name: nameVal, description: descVal, assignee: assigneeVal, startDate: startVal, endDate: endVal, status: statusVal, parentId: parentId });
       });
 
       document.getElementById('modal-task-name').focus();
     },
 
-    showMilestoneForm(milestone, parentInfo, onSave) {
+    showMilestoneForm: function(milestone, parentInfo, onSave) {
       var isEdit = !!milestone;
       var title = isEdit ? '编辑里程碑' : '新建里程碑';
       var name = isEdit ? milestone.name : '';
@@ -1189,7 +1098,7 @@
         if (!nameVal) { alert('请输入名称'); return; }
         if (!dateVal) { alert('请选择日期'); return; }
         ModalManager.close();
-        onSave({ name: nameVal, date: dateVal, icon: iconVal, taskId: parentInfo.taskId, projectId: parentInfo.projectId });
+        onSave({ name: nameVal, date: dateVal, icon: iconVal, taskId: parentInfo.taskId });
       });
 
       document.getElementById('modal-ms-name').focus();
@@ -1197,147 +1106,156 @@
   };
 
   // ============================================================
-  // == TreeView
+  // == TreeView: 多层级任务树
   // ============================================================
   const TreeView = {
     container: null,
     contextMenu: null,
-    collapsedProjects: new Set(),
+    collapsedTasks: new Set(),
     selectedTaskId: null,
+    hoveredTaskId: null,
 
-    init() {
+    init: function() {
       this.container = document.getElementById('tree-container');
       this.contextMenu = document.getElementById('context-menu');
-      document.addEventListener('click', () => this.hideContextMenu());
+      document.addEventListener('click', function() { TreeView.hideContextMenu(); });
     },
 
-    render() {
-      var projects = ProjectManager.getProjects();
-      if (projects.length === 0) {
-        this.container.innerHTML = '<div style="padding:24px 16px;color:var(--color-text-light);font-size:13px;text-align:center;">暂无项目<br>点击「项目管理」创建</div>';
+    render: function() {
+      var roots = TaskManager.getRootTasks();
+      if (roots.length === 0) {
+        this.container.innerHTML = '<div style="padding:24px 16px;color:var(--color-text-light);font-size:13px;text-align:center;">暂无任务<br>点击下方按钮新建</div>';
         return;
       }
-
-      var self = this;
       var html = '';
-      projects.forEach(function(project) {
-        var tasks = ProjectManager.getTasksByProject(project.id);
-        var isCollapsed = self.collapsedProjects.has(project.id);
-        var projectMilestones = ProjectManager.getMilestonesByProject(project.id);
-
-        html += '<div class="tree-project" data-project-id="' + project.id + '">';
-        html += '<div class="tree-project-header" data-project-id="' + project.id + '">';
-        html += '<span class="arrow ' + (isCollapsed ? 'collapsed' : '') + '">▼</span>';
-        html += '<span class="color-dot" style="background:' + project.color + '"></span>';
-        html += '<span style="flex:1">' + _escapeHtml(project.name) + '</span>';
-        html += '</div>';
-
-        html += '<div class="tree-project-tasks ' + (isCollapsed ? 'collapsed' : '') + '">';
-
-        // Project-level milestones
-        projectMilestones.forEach(function(ms) {
-          html += '<div class="tree-milestone" data-milestone-id="' + ms.id + '" data-project-id="' + project.id + '">';
-          html += '<span>' + ms.icon + '</span>';
-          html += '<span>' + _escapeHtml(ms.name) + '</span>';
-          html += '<span style="margin-left:auto;font-size:11px;">' + ms.date.slice(5) + '</span>';
-          html += '</div>';
-        });
-
-        tasks.forEach(function(task) {
-          var statusIcon = task.status === 'done' ? '✓' : task.status === 'inProgress' ? '►' : '○';
-          var statusColor = task.status === 'done' ? '#2ecc71' : task.status === 'inProgress' ? '#f39c12' : '#ccc';
-          var selected = self.selectedTaskId === task.id ? ' selected' : '';
-
-          html += '<div class="tree-task' + selected + '" data-task-id="' + task.id + '" data-project-id="' + project.id + '">';
-          html += '<span class="status-icon" style="color:' + statusColor + '">' + statusIcon + '</span>';
-          html += '<span class="task-name">' + _escapeHtml(task.name) + '</span>';
-          if (task.assignee) html += '<span style="font-size:11px;color:var(--color-text-light);flex-shrink:0;">' + _escapeHtml(task.assignee) + '</span>';
-          html += '</div>';
-
-          // Task-level milestones
-          var taskMilestones = ProjectManager.getMilestonesByTask(task.id);
-          if (taskMilestones.length > 0) {
-            html += '<div class="tree-milestone-list">';
-            taskMilestones.forEach(function(ms) {
-              html += '<div class="tree-milestone" data-milestone-id="' + ms.id + '" data-task-id="' + task.id + '">';
-              html += '<span>' + ms.icon + '</span>';
-              html += '<span>' + _escapeHtml(ms.name) + '</span>';
-              html += '<span style="margin-left:auto;font-size:11px;">' + ms.date.slice(5) + '</span>';
-              html += '</div>';
-            });
-            html += '</div>';
-          }
-        });
-
-        html += '</div></div>';
+      var self = this;
+      roots.forEach(function(task) {
+        html += self._renderNode(task, 0);
       });
-
       this.container.innerHTML = html;
       this._bindEvents();
     },
 
-    _bindEvents() {
+    _renderNode: function(task, depth) {
+      var children = TaskManager.getChildren(task.id);
+      var hasChildren = children.length > 0;
+      var isCollapsed = this.collapsedTasks.has(task.id);
+      var isSelected = this.selectedTaskId === task.id;
+      var isHighlighted = this.hoveredTaskId === task.id;
+      var color = TaskManager.getEffectiveColor(task);
+
+      var statusIcon = task.status === 'done' ? '✓' : task.status === 'inProgress' ? '►' : '○';
+      var statusColor = task.status === 'done' ? '#2ecc71' : task.status === 'inProgress' ? '#f39c12' : '#ccc';
+
+      var rowCls = 'tree-node-row';
+      if (isSelected) rowCls += ' selected';
+      if (isHighlighted) rowCls += ' highlighted';
+
+      var arrowCls = 'arrow';
+      if (!hasChildren) arrowCls += ' empty';
+      else if (isCollapsed) arrowCls += ' collapsed';
+
+      var html = '<div class="tree-node" data-task-id="' + task.id + '" data-depth="' + depth + '">';
+      html += '<div class="' + rowCls + '" data-task-id="' + task.id + '">';
+      html += '<span class="' + arrowCls + '">▼</span>';
+      html += '<span class="color-dot" style="background:' + color + '"></span>';
+      html += '<span class="status-icon" style="color:' + statusColor + '">' + statusIcon + '</span>';
+      html += '<span class="node-name">' + _escapeHtml(task.name) + '</span>';
+      if (task.assignee) {
+        html += '<span style="font-size:11px;color:var(--color-text-light);flex-shrink:0;margin-right:4px;">' + _escapeHtml(task.assignee) + '</span>';
+      }
+      html += '<span class="node-actions">';
+      if (depth < 2) {
+        html += '<button class="btn-add-child" data-task-id="' + task.id + '" title="添加子任务">+</button>';
+      }
+      html += '<button class="btn-more" data-task-id="' + task.id + '" title="更多操作">⋯</button>';
+      html += '</span>';
+      html += '</div>';
+
+      if (hasChildren) {
+        html += '<div class="tree-children' + (isCollapsed ? ' collapsed' : '') + '">';
+        var self = this;
+        children.forEach(function(child) {
+          html += self._renderNode(child, depth + 1);
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+      return html;
+    },
+
+    _bindEvents: function() {
       var self = this;
 
-      // Collapse/expand projects
-      this.container.querySelectorAll('.tree-project-header').forEach(function(el) {
-        el.addEventListener('click', function() {
-          var projectId = el.dataset.projectId;
-          if (self.collapsedProjects.has(projectId)) {
-            self.collapsedProjects.delete(projectId);
-          } else {
-            self.collapsedProjects.add(projectId);
-          }
-          self.render();
-        });
+      this.container.querySelectorAll('.tree-node-row').forEach(function(el) {
+        var taskId = el.dataset.taskId;
 
-        el.addEventListener('contextmenu', function(e) {
-          e.preventDefault();
-          self.showContextMenu(e.clientX, e.clientY, [
-            { label: '添加任务', action: function() { App.showAddTask(el.dataset.projectId); } },
-            { label: '添加里程碑', action: function() { App.showAddProjectMilestone(el.dataset.projectId); } },
-            { label: '编辑项目', action: function() { App.showEditProject(el.dataset.projectId); } },
-            { label: '删除项目', action: function() { App.deleteProject(el.dataset.projectId); }, danger: true }
-          ]);
-        });
-      });
-
-      // Click tasks
-      this.container.querySelectorAll('.tree-task').forEach(function(el) {
-        el.addEventListener('click', function() {
-          self.selectedTaskId = el.dataset.taskId;
-          self.render();
-        });
-
-        el.addEventListener('contextmenu', function(e) {
-          e.preventDefault();
-          self.showContextMenu(e.clientX, e.clientY, [
-            { label: '添加里程碑', action: function() { App.showAddTaskMilestone(el.dataset.taskId); } },
-            { label: '编辑任务', action: function() { App.showEditTask(el.dataset.taskId); } },
-            { label: '删除任务', action: function() { App.deleteTask(el.dataset.taskId); }, danger: true }
-          ]);
-        });
-      });
-
-      // Click milestones
-      this.container.querySelectorAll('.tree-milestone').forEach(function(el) {
         el.addEventListener('click', function(e) {
-          e.stopPropagation();
-          App.showEditMilestone(el.dataset.milestoneId);
+          if (e.target.closest('.node-actions')) return;
+          var children = TaskManager.getChildren(taskId);
+          if (children.length > 0 && e.target.classList.contains('arrow')) {
+            if (self.collapsedTasks.has(taskId)) {
+              self.collapsedTasks.delete(taskId);
+            } else {
+              self.collapsedTasks.add(taskId);
+            }
+            self.render();
+            return;
+          }
+          self.selectedTaskId = taskId;
+          self.render();
+          App.onTaskSelected(taskId);
+        });
+
+        el.addEventListener('mouseenter', function() {
+          self.hoveredTaskId = taskId;
+          App.onTaskHovered(taskId);
+        });
+        el.addEventListener('mouseleave', function() {
+          self.hoveredTaskId = null;
+          App.onTaskHovered(null);
         });
 
         el.addEventListener('contextmenu', function(e) {
           e.preventDefault();
+          var depth = TaskManager.getDepth(taskId);
+          var items = [];
+          if (depth < 2) {
+            items.push({ label: '添加子任务', action: function() { App.showAddTask(taskId); } });
+          }
+          items.push({ label: '编辑任务', action: function() { App.showEditTask(taskId); } });
+          items.push({ label: '设置颜色', action: function() { App.showColorPicker(taskId); } });
+          items.push({ label: '删除任务', action: function() { App.deleteTask(taskId); }, danger: true });
+          self.showContextMenu(e.clientX, e.clientY, items);
+        });
+      });
+
+      this.container.querySelectorAll('.btn-add-child').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
           e.stopPropagation();
-          self.showContextMenu(e.clientX, e.clientY, [
-            { label: '编辑里程碑', action: function() { App.showEditMilestone(el.dataset.milestoneId); } },
-            { label: '删除里程碑', action: function() { App.deleteMilestone(el.dataset.milestoneId); }, danger: true }
-          ]);
+          App.showAddTask(btn.dataset.taskId);
+        });
+      });
+
+      this.container.querySelectorAll('.btn-more').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var taskId = btn.dataset.taskId;
+          var depth = TaskManager.getDepth(taskId);
+          var rect = btn.getBoundingClientRect();
+          var items = [];
+          if (depth < 2) {
+            items.push({ label: '添加子任务', action: function() { App.showAddTask(taskId); } });
+          }
+          items.push({ label: '编辑任务', action: function() { App.showEditTask(taskId); } });
+          items.push({ label: '设置颜色', action: function() { App.showColorPicker(taskId); } });
+          items.push({ label: '删除任务', action: function() { App.deleteTask(taskId); }, danger: true });
+          self.showContextMenu(rect.left, rect.bottom, items);
         });
       });
     },
 
-    showContextMenu(x, y, items) {
+    showContextMenu: function(x, y, items) {
       var self = this;
       var html = '';
       items.forEach(function(item) {
@@ -1358,8 +1276,25 @@
       });
     },
 
-    hideContextMenu() {
+    hideContextMenu: function() {
       this.contextMenu.classList.remove('active');
+    },
+
+    highlightTask: function(taskId) {
+      this.selectedTaskId = taskId;
+      this.render();
+      var el = this.container.querySelector('[data-task-id="' + taskId + '"].tree-node-row');
+      if (el) el.scrollIntoView({ block: 'nearest' });
+    },
+
+    setHoverHighlight: function(taskId) {
+      this.container.querySelectorAll('.tree-node-row.highlighted').forEach(function(el) {
+        el.classList.remove('highlighted');
+      });
+      if (taskId) {
+        var el = this.container.querySelector('.tree-node-row[data-task-id="' + taskId + '"]');
+        if (el) el.classList.add('highlighted');
+      }
     }
   };
 
@@ -1383,27 +1318,32 @@
   // ============================================================
   const GanttView = {
     container: null,
-    granularity: 'month', // 'year' | 'month' | 'week'
+    granularity: 'month',
     cellWidth: 80,
     startDate: null,
     endDate: null,
     cells: [],
 
-    init(container) {
+    init: function(container) {
       this.container = container;
     },
 
-    setGranularity(g) {
+    setGranularity: function(g) {
       this.granularity = g;
       this.render();
     },
 
-    _calcDateRange() {
-      var tasks = ProjectManager.getAllTasks();
-      var milestones = ProjectManager.getAllMilestones();
+    _calcDateRange: function() {
+      var allTasks = TaskManager.getAllTasks();
+      var milestones = TaskManager.getAllMilestones();
       var allDates = [];
 
-      tasks.forEach(function(t) { allDates.push(t.startDate, t.endDate); });
+      var self = this;
+      allTasks.forEach(function(t) {
+        var range = TaskManager.getDateRange(t);
+        if (range.startDate) allDates.push(range.startDate);
+        if (range.endDate) allDates.push(range.endDate);
+      });
       milestones.forEach(function(m) { allDates.push(m.date); });
 
       if (allDates.length === 0) {
@@ -1431,7 +1371,7 @@
       }
     },
 
-    _generateCells() {
+    _generateCells: function() {
       this.cells = [];
       var d = new Date(this.startDate);
 
@@ -1470,7 +1410,7 @@
       }
     },
 
-    _dateToX(dateStr) {
+    _dateToX: function(dateStr) {
       var date = _parseDate(dateStr);
       var totalDays = this._daysBetween(this.startDate, this.endDate);
       var dayOffset = this._daysBetween(this.startDate, date);
@@ -1478,7 +1418,7 @@
       return (dayOffset / totalDays) * totalWidth;
     },
 
-    _dateRangeToWidth(startStr, endStr) {
+    _dateRangeToWidth: function(startStr, endStr) {
       var x1 = this._dateToX(startStr);
       var x2 = this._dateToX(endStr);
       var oneDayWidth = this._dateToX(
@@ -1487,13 +1427,22 @@
       return Math.max(x2 - x1 + oneDayWidth, 4);
     },
 
-    _daysBetween(d1, d2) {
+    _xToDate: function(x) {
+      var totalWidth = this.cells.length * this.cellWidth;
+      var totalDays = this._daysBetween(this.startDate, this.endDate);
+      var dayOffset = Math.round((x / totalWidth) * totalDays);
+      var date = new Date(this.startDate);
+      date.setDate(date.getDate() + dayOffset);
+      return DataStore.formatDate(date);
+    },
+
+    _daysBetween: function(d1, d2) {
       var t1 = new Date(d1).setHours(0, 0, 0, 0);
       var t2 = new Date(d2).setHours(0, 0, 0, 0);
       return Math.round((t2 - t1) / 86400000);
     },
 
-    _getWeekNumber(d) {
+    _getWeekNumber: function(d) {
       var date = new Date(d);
       date.setHours(0, 0, 0, 0);
       date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
@@ -1501,16 +1450,34 @@
       return 1 + Math.round(((date - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
     },
 
-    render() {
+    _buildRows: function(leafTasks) {
+      var rows = [];
+      var rowMap = {};
+      leafTasks.forEach(function(task) {
+        if (task.ganttRow !== null && task.ganttRow !== undefined && rowMap[task.ganttRow] !== undefined) {
+          rows[rowMap[task.ganttRow]].push(task);
+        } else {
+          var rowIndex = rows.length;
+          rows.push([task]);
+          if (task.ganttRow !== null && task.ganttRow !== undefined) {
+            rowMap[task.ganttRow] = rowIndex;
+          }
+        }
+      });
+      return rows;
+    },
+
+    render: function() {
       this._calcDateRange();
       this._generateCells();
 
-      var projects = ProjectManager.getProjects();
-      var allTasks = ProjectManager.getAllTasks();
+      var allTasks = TaskManager.getAllTasks();
+      var leafTasks = allTasks.filter(function(t) {
+        return TaskManager.getChildren(t.id).length === 0;
+      });
 
-      // Empty state
-      if (allTasks.length === 0) {
-        this.container.innerHTML = '<div class="gantt-empty">暂无任务，请先创建项目和任务</div>';
+      if (leafTasks.length === 0) {
+        this.container.innerHTML = '<div class="gantt-empty">暂无任务，请先创建任务</div>';
         return;
       }
 
@@ -1518,82 +1485,336 @@
       var today = DataStore.formatDate(new Date());
       var self = this;
 
-      // Header
       var headerHtml = '<div class="gantt-header" style="width:' + totalWidth + 'px;">';
       this.cells.forEach(function(cell) {
         headerHtml += '<div class="gantt-header-cell" style="width:' + self.cellWidth + 'px;">' + cell.label + '</div>';
       });
       headerHtml += '</div>';
 
-      // Body
-      var bodyHtml = '<div class="gantt-body"><div style="position:relative;width:' + totalWidth + 'px;">';
+      var rows = this._buildRows(leafTasks);
+      var bodyHtml = '<div class="gantt-body"><div style="position:relative;width:' + totalWidth + 'px;min-height:' + (rows.length * 36) + 'px;">';
 
-      // Today line
       var todayX = this._dateToX(today);
       if (todayX >= 0 && todayX <= totalWidth) {
         bodyHtml += '<div class="gantt-today-line" style="left:' + todayX + 'px;"></div>';
       }
 
-      projects.forEach(function(project) {
-        var tasks = ProjectManager.getTasksByProject(project.id);
-        var projectMilestones = ProjectManager.getMilestonesByProject(project.id);
+      rows.forEach(function(row, rowIndex) {
+        bodyHtml += '<div class="gantt-row" style="width:' + totalWidth + 'px;top:' + (rowIndex * 36) + 'px;position:absolute;left:0;" data-row-index="' + rowIndex + '">';
+        self.cells.forEach(function(cell) {
+          var cls = cell.isWeekend ? ' weekend' : '';
+          bodyHtml += '<div class="gantt-grid-cell' + cls + '" style="width:' + self.cellWidth + 'px;"></div>';
+        });
+        bodyHtml += '</div>';
 
-        // Project-level milestones row
-        if (projectMilestones.length > 0) {
-          bodyHtml += '<div class="gantt-row gantt-milestone-row" style="width:' + totalWidth + 'px;">';
-          self.cells.forEach(function(cell) {
-            var cls = cell.isWeekend ? ' weekend' : '';
-            bodyHtml += '<div class="gantt-grid-cell' + cls + '" style="width:' + self.cellWidth + 'px;"></div>';
-          });
-          projectMilestones.forEach(function(ms) {
-            var x = self._dateToX(ms.date);
-            bodyHtml += '<div class="gantt-milestone" style="left:' + x + 'px;color:' + project.color + ';" data-milestone-id="' + ms.id + '" title="' + _escapeHtml(ms.name) + ' (' + ms.date + ')">' + ms.icon + '</div>';
-          });
-          bodyHtml += '</div>';
-        }
+        row.forEach(function(task) {
+          var range = TaskManager.getDateRange(task);
+          if (!range.startDate || !range.endDate) return;
 
-        tasks.forEach(function(task) {
-          bodyHtml += '<div class="gantt-row" style="width:' + totalWidth + 'px;">';
-          self.cells.forEach(function(cell) {
-            var cls = cell.isWeekend ? ' weekend' : '';
-            bodyHtml += '<div class="gantt-grid-cell' + cls + '" style="width:' + self.cellWidth + 'px;"></div>';
-          });
-
-          // Task bar
-          var barX = self._dateToX(task.startDate);
-          var barW = self._dateRangeToWidth(task.startDate, task.endDate);
+          var color = TaskManager.getEffectiveColor(task);
+          var barX = self._dateToX(range.startDate);
+          var barW = self._dateRangeToWidth(range.startDate, range.endDate);
           var statusCls = task.status === 'done' ? ' status-done' : '';
+          var selectedCls = (TreeView.selectedTaskId === task.id) ? ' selected' : '';
           var assigneeText = task.assignee ? ' [' + _escapeHtml(task.assignee) + ']' : '';
-          bodyHtml += '<div class="gantt-bar' + statusCls + '" style="left:' + barX + 'px;width:' + barW + 'px;background:' + project.color + ';" data-task-id="' + task.id + '" title="' + _escapeHtml(task.name) + assigneeText + ' (' + task.startDate + ' ~ ' + task.endDate + ')">' + _escapeHtml(task.name) + '</div>';
 
-          // Task-level milestones
-          var taskMilestones = ProjectManager.getMilestonesByTask(task.id);
-          taskMilestones.forEach(function(ms) {
+          bodyHtml += '<div class="gantt-bar' + statusCls + selectedCls + '" style="left:' + barX + 'px;width:' + barW + 'px;top:' + (rowIndex * 36 + 8) + 'px;background:' + color + ';" data-task-id="' + task.id + '" title="' + _escapeHtml(task.name) + assigneeText + ' (' + range.startDate + ' ~ ' + range.endDate + ')">' + _escapeHtml(task.name) + '</div>';
+
+          var milestones = TaskManager.getMilestonesByTask(task.id);
+          milestones.forEach(function(ms) {
             var msX = self._dateToX(ms.date);
-            bodyHtml += '<div class="gantt-milestone" style="left:' + msX + 'px;color:' + project.color + ';" data-milestone-id="' + ms.id + '" title="' + _escapeHtml(ms.name) + ' (' + ms.date + ')">' + ms.icon + '</div>';
+            bodyHtml += '<div class="gantt-milestone" style="left:' + msX + 'px;top:' + (rowIndex * 36 + 4) + 'px;" data-milestone-id="' + ms.id + '" data-task-id="' + task.id + '" title="' + _escapeHtml(ms.name) + ' (' + ms.date + ')">' + ms.icon + '</div>';
           });
-
-          bodyHtml += '</div>';
         });
       });
 
       bodyHtml += '</div></div>';
 
       this.container.innerHTML = '<div class="gantt-container">' + headerHtml + bodyHtml + '</div>';
+      this._bindBarEvents();
 
-      // Bind click events
-      this.container.querySelectorAll('.gantt-bar').forEach(function(el) {
-        el.addEventListener('click', function() { App.showEditTask(el.dataset.taskId); });
-      });
-      this.container.querySelectorAll('.gantt-milestone').forEach(function(el) {
-        el.addEventListener('click', function() { App.showEditMilestone(el.dataset.milestoneId); });
-      });
-
-      // Scroll to today
       var ganttBody = this.container.querySelector('.gantt-body');
       if (ganttBody && todayX > 0) {
         ganttBody.scrollLeft = Math.max(0, todayX - ganttBody.clientWidth / 2);
       }
+    },
+
+    _bindBarEvents: function() {
+      var self = this;
+
+      this.container.querySelectorAll('.gantt-bar').forEach(function(el) {
+        el.addEventListener('mouseenter', function() {
+          el.classList.add('highlight');
+          TreeView.setHoverHighlight(el.dataset.taskId);
+        });
+        el.addEventListener('mouseleave', function() {
+          el.classList.remove('highlight');
+          TreeView.setHoverHighlight(null);
+        });
+        el.addEventListener('click', function(e) {
+          if (e.detail === 1) {
+            App.onGanttTaskClicked(el.dataset.taskId);
+          }
+        });
+        el.addEventListener('dblclick', function(e) {
+          var taskId = el.dataset.taskId;
+          var rect = el.getBoundingClientRect();
+          var clickX = e.clientX - rect.left;
+          var barStartX = parseFloat(el.style.left);
+          var dateAtClick = self._xToDate(barStartX + clickX);
+          App.showAddMilestoneAtDate(taskId, dateAtClick);
+        });
+      });
+
+      this.container.querySelectorAll('.gantt-milestone').forEach(function(el) {
+        el.addEventListener('click', function(e) {
+          e.stopPropagation();
+          App.showEditMilestone(el.dataset.milestoneId);
+        });
+        el.addEventListener('contextmenu', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          TreeView.showContextMenu(e.clientX, e.clientY, [
+            { label: '编辑里程碑', action: function() { App.showEditMilestone(el.dataset.milestoneId); } },
+            { label: '删除里程碑', action: function() { App.deleteMilestone(el.dataset.milestoneId); }, danger: true }
+          ]);
+        });
+      });
+
+      DragManager.attachDragHandlers();
+    },
+
+    highlightBar: function(taskId) {
+      this.container.querySelectorAll('.gantt-bar').forEach(function(el) {
+        el.classList.toggle('highlight', el.dataset.taskId === taskId);
+      });
+    },
+
+    clearHighlight: function() {
+      this.container.querySelectorAll('.gantt-bar.highlight').forEach(function(el) {
+        el.classList.remove('highlight');
+      });
+    },
+
+    selectBar: function(taskId) {
+      this.container.querySelectorAll('.gantt-bar.selected').forEach(function(el) {
+        el.classList.remove('selected');
+      });
+      if (taskId) {
+        var el = this.container.querySelector('.gantt-bar[data-task-id="' + taskId + '"]');
+        if (el) {
+          el.classList.add('selected');
+          el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        }
+      }
+    }
+  };
+
+  // ============================================================
+  // == DragManager: 甘特图拖拽操作
+  // ============================================================
+  var DragManager = {
+    isDragging: false,
+    dragType: null,
+    dragTarget: null,
+    dragElement: null,
+    startX: 0,
+    startY: 0,
+    originalStartDate: null,
+    originalEndDate: null,
+    originalDate: null,
+    tooltip: null,
+
+    init: function() {
+      var self = this;
+      document.addEventListener('mousemove', function(e) { self._onMouseMove(e); });
+      document.addEventListener('mouseup', function(e) { self._onMouseUp(e); });
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && self.isDragging) {
+          self._cancelDrag();
+        }
+      });
+    },
+
+    attachDragHandlers: function() {
+      var self = this;
+
+      document.querySelectorAll('.gantt-bar').forEach(function(el) {
+        el.addEventListener('mousedown', function(e) {
+          if (e.button !== 0) return;
+          e.preventDefault();
+          var taskId = el.dataset.taskId;
+          var task = TaskManager.getTask(taskId);
+          if (!task) return;
+
+          var rect = el.getBoundingClientRect();
+          var offsetX = e.clientX - rect.left;
+          var barWidth = rect.width;
+
+          if (offsetX < 5) {
+            self._startDrag(e, 'resize-left', task, el);
+          } else if (offsetX > barWidth - 5) {
+            self._startDrag(e, 'resize-right', task, el);
+          } else {
+            self._startDrag(e, 'move', task, el);
+          }
+        });
+
+        el.addEventListener('mousemove', function(e) {
+          if (self.isDragging) return;
+          var rect = el.getBoundingClientRect();
+          var offsetX = e.clientX - rect.left;
+          if (offsetX < 5 || offsetX > rect.width - 5) {
+            el.style.cursor = 'col-resize';
+          } else {
+            el.style.cursor = 'grab';
+          }
+        });
+      });
+
+      document.querySelectorAll('.gantt-milestone').forEach(function(el) {
+        el.addEventListener('mousedown', function(e) {
+          if (e.button !== 0) return;
+          e.preventDefault();
+          e.stopPropagation();
+          var msId = el.dataset.milestoneId;
+          var ms = TaskManager.data.milestones.find(function(m) { return m.id === msId; });
+          if (ms) {
+            self._startDrag(e, 'milestone', ms, el);
+          }
+        });
+      });
+    },
+
+    _startDrag: function(e, type, target, element) {
+      this.isDragging = true;
+      this.dragType = type;
+      this.dragTarget = target;
+      this.dragElement = element;
+      this.startX = e.clientX;
+      this.startY = e.clientY;
+
+      if (type === 'move' || type === 'resize-left' || type === 'resize-right') {
+        this.originalStartDate = target.startDate;
+        this.originalEndDate = target.endDate;
+      } else if (type === 'milestone') {
+        this.originalDate = target.date;
+      }
+
+      this.tooltip = document.createElement('div');
+      this.tooltip.className = 'gantt-drag-tooltip';
+      document.body.appendChild(this.tooltip);
+
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = type === 'move' ? 'grabbing' : 'col-resize';
+    },
+
+    _onMouseMove: function(e) {
+      if (!this.isDragging) return;
+
+      var deltaX = e.clientX - this.startX;
+      var daysDelta = Math.round(deltaX / GanttView.cellWidth * this._daysPerCell());
+
+      if (this.dragType === 'move') {
+        var newStart = this._addDays(this.originalStartDate, daysDelta);
+        var newEnd = this._addDays(this.originalEndDate, daysDelta);
+        this.tooltip.textContent = newStart + ' ~ ' + newEnd;
+        this.dragTarget._tempStart = newStart;
+        this.dragTarget._tempEnd = newEnd;
+      } else if (this.dragType === 'resize-left') {
+        var newStart = this._addDays(this.originalStartDate, daysDelta);
+        if (newStart >= this.originalEndDate) return;
+        this.tooltip.textContent = '开始: ' + newStart;
+        this.dragTarget._tempStart = newStart;
+      } else if (this.dragType === 'resize-right') {
+        var newEnd = this._addDays(this.originalEndDate, daysDelta);
+        if (newEnd <= this.originalStartDate) return;
+        this.tooltip.textContent = '结束: ' + newEnd;
+        this.dragTarget._tempEnd = newEnd;
+      } else if (this.dragType === 'milestone') {
+        var newDate = this._addDays(this.originalDate, daysDelta);
+        this.tooltip.textContent = newDate;
+        this.dragTarget._tempDate = newDate;
+      }
+
+      this.tooltip.style.left = (e.clientX + 12) + 'px';
+      this.tooltip.style.top = (e.clientY - 30) + 'px';
+    },
+
+    _onMouseUp: function(e) {
+      if (!this.isDragging) return;
+
+      var target = this.dragTarget;
+
+      if (this.dragType === 'move') {
+        if (target._tempStart && target._tempEnd) {
+          TaskManager.updateTask(target.id, { startDate: target._tempStart, endDate: target._tempEnd });
+        }
+      } else if (this.dragType === 'resize-left') {
+        if (target._tempStart) {
+          TaskManager.updateTask(target.id, { startDate: target._tempStart });
+        }
+      } else if (this.dragType === 'resize-right') {
+        if (target._tempEnd) {
+          TaskManager.updateTask(target.id, { endDate: target._tempEnd });
+        }
+      } else if (this.dragType === 'milestone') {
+        if (target._tempDate) {
+          var task = TaskManager.getTask(target.taskId);
+          if (task) {
+            var range = TaskManager.getDateRange(task);
+            if (range.startDate && range.endDate) {
+              if (target._tempDate < range.startDate || target._tempDate > range.endDate) {
+                this._cleanup();
+                App.renderAll();
+                return;
+              }
+            }
+          }
+          TaskManager.updateMilestone(target.id, { date: target._tempDate });
+        }
+      }
+
+      delete target._tempStart;
+      delete target._tempEnd;
+      delete target._tempDate;
+
+      this._cleanup();
+      App.renderAll();
+    },
+
+    _cancelDrag: function() {
+      if (!this.isDragging) return;
+      delete this.dragTarget._tempStart;
+      delete this.dragTarget._tempEnd;
+      delete this.dragTarget._tempDate;
+      this._cleanup();
+      App.renderAll();
+    },
+
+    _cleanup: function() {
+      this.isDragging = false;
+      this.dragType = null;
+      this.dragTarget = null;
+      this.dragElement = null;
+      if (this.tooltip && this.tooltip.parentNode) {
+        document.body.removeChild(this.tooltip);
+      }
+      this.tooltip = null;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    },
+
+    _daysPerCell: function() {
+      if (GanttView.granularity === 'year') return 30;
+      if (GanttView.granularity === 'month') return 7;
+      return 1;
+    },
+
+    _addDays: function(dateStr, days) {
+      var d = _parseDate(dateStr);
+      d.setDate(d.getDate() + days);
+      return DataStore.formatDate(d);
     }
   };
 
@@ -1636,10 +1857,11 @@
       var dayOfWeek = (firstDay.getDay() + 6) % 7;
       startDay.setDate(startDay.getDate() - dayOfWeek);
 
-      var allTasks = ProjectManager.getAllTasks();
-      var allMilestones = ProjectManager.getAllMilestones();
-      var projects = {};
-      ProjectManager.getProjects().forEach(function(p) { projects[p.id] = p; });
+      var allTasks = TaskManager.getAllTasks();
+      var leafTasks = allTasks.filter(function(t) {
+        return TaskManager.getChildren(t.id).length === 0;
+      });
+      var allMilestones = TaskManager.getAllMilestones();
 
       for (var i = 0; i < 42; i++) {
         var date = new Date(startDay);
@@ -1655,19 +1877,17 @@
         html += '<div class="' + cls + '" data-date="' + dateStr + '">';
         html += '<div class="calendar-day-number">' + date.getDate() + '</div>';
 
-        // Tasks for this day
-        allTasks.forEach(function(task) {
-          if (dateStr >= task.startDate && dateStr <= task.endDate) {
-            var project = projects[task.projectId];
-            if (project) {
-              var opacity = task.status === 'done' ? '0.5' : '1';
-              var showName = dateStr === task.startDate || date.getDay() === 1;
-              html += '<div class="calendar-task-bar" style="background:' + project.color + ';opacity:' + opacity + ';" data-task-id="' + task.id + '" title="' + _escapeHtml(task.name) + '">' + (showName ? _escapeHtml(task.name) : '&nbsp;') + '</div>';
-            }
+        leafTasks.forEach(function(task) {
+          var range = TaskManager.getDateRange(task);
+          if (!range.startDate || !range.endDate) return;
+          if (dateStr >= range.startDate && dateStr <= range.endDate) {
+            var color = TaskManager.getEffectiveColor(task);
+            var opacity = task.status === 'done' ? '0.5' : '1';
+            var showName = dateStr === range.startDate || date.getDay() === 1;
+            html += '<div class="calendar-task-bar" style="background:' + color + ';opacity:' + opacity + ';" data-task-id="' + task.id + '" title="' + _escapeHtml(task.name) + '">' + (showName ? _escapeHtml(task.name) : '&nbsp;') + '</div>';
           }
         });
 
-        // Milestones for this day
         allMilestones.forEach(function(ms) {
           if (ms.date === dateStr) {
             html += '<div class="calendar-milestone-item" data-milestone-id="' + ms.id + '" title="' + _escapeHtml(ms.name) + '">' + ms.icon + ' ' + _escapeHtml(ms.name) + '</div>';
@@ -1680,7 +1900,6 @@
       html += '</div></div>';
       this.container.innerHTML = html;
 
-      // Bind navigation
       document.getElementById('cal-prev-month').addEventListener('click', function() {
         self.currentMonth--;
         if (self.currentMonth < 0) { self.currentMonth = 11; self.currentYear--; }
@@ -1692,21 +1911,75 @@
         self.render();
       });
 
-      // Click tasks
       this.container.querySelectorAll('.calendar-task-bar').forEach(function(el) {
         el.addEventListener('click', function(e) {
           e.stopPropagation();
-          App.showEditTask(el.dataset.taskId);
+          App.onGanttTaskClicked(el.dataset.taskId);
+        });
+        el.addEventListener('mouseenter', function() {
+          el.classList.add('highlight');
+          TreeView.setHoverHighlight(el.dataset.taskId);
+        });
+        el.addEventListener('mouseleave', function() {
+          el.classList.remove('highlight');
+          TreeView.setHoverHighlight(null);
         });
       });
 
-      // Click milestones
       this.container.querySelectorAll('.calendar-milestone-item').forEach(function(el) {
         el.addEventListener('click', function(e) {
           e.stopPropagation();
           App.showEditMilestone(el.dataset.milestoneId);
         });
       });
+
+      // Right-click on calendar day to add milestone
+      this.container.querySelectorAll('.calendar-day').forEach(function(el) {
+        el.addEventListener('contextmenu', function(e) {
+          e.preventDefault();
+          var dateStr = el.dataset.date;
+          var leafTasks = TaskManager.getAllTasks().filter(function(t) {
+            return TaskManager.getChildren(t.id).length === 0;
+          });
+          if (leafTasks.length === 0) return;
+          var items = [];
+          leafTasks.forEach(function(task) {
+            var range = TaskManager.getDateRange(task);
+            if (range.startDate && range.endDate && dateStr >= range.startDate && dateStr <= range.endDate) {
+              items.push({
+                label: '添加里程碑到「' + task.name.substring(0, 8) + '」',
+                action: function() { App.showAddMilestoneAtDate(task.id, dateStr); }
+              });
+            }
+          });
+          if (items.length > 0) {
+            TreeView.showContextMenu(e.clientX, e.clientY, items);
+          }
+        });
+      });
+    },
+
+    highlightBar: function(taskId) {
+      this.container.querySelectorAll('.calendar-task-bar').forEach(function(el) {
+        el.classList.toggle('highlight', el.dataset.taskId === taskId);
+      });
+    },
+
+    clearHighlight: function() {
+      this.container.querySelectorAll('.calendar-task-bar.highlight').forEach(function(el) {
+        el.classList.remove('highlight');
+      });
+    },
+
+    selectBar: function(taskId) {
+      this.container.querySelectorAll('.calendar-task-bar.selected').forEach(function(el) {
+        el.classList.remove('selected');
+      });
+      if (taskId) {
+        this.container.querySelectorAll('.calendar-task-bar[data-task-id="' + taskId + '"]').forEach(function(el) {
+          el.classList.add('selected');
+        });
+      }
     }
   };
 
@@ -1717,14 +1990,15 @@
     currentView: 'gantt',
 
     init: function() {
-      ProjectManager.init();
+      TaskManager.init();
       ModalManager.init();
       TreeView.init();
       GanttView.init(document.getElementById('content-area'));
       CalendarView.init(document.getElementById('content-area'));
+      DragManager.init();
 
-      this.currentView = ProjectManager.getSetting('lastView') || 'gantt';
-      var granularity = ProjectManager.getSetting('lastGranularity') || 'month';
+      this.currentView = TaskManager.getSetting('lastView') || 'gantt';
+      var granularity = TaskManager.getSetting('lastGranularity') || 'month';
       GanttView.granularity = granularity;
 
       this._bindToolbar();
@@ -1746,7 +2020,6 @@
     _bindToolbar: function() {
       var self = this;
 
-      document.getElementById('btn-project-manager').addEventListener('click', function() { self.showProjectManager(); });
       document.getElementById('btn-import').addEventListener('click', function() { self.importData(); });
       document.getElementById('btn-export').addEventListener('click', function() { self.exportData(); });
       document.getElementById('btn-view-gantt').addEventListener('click', function() { self.switchView('gantt'); });
@@ -1755,37 +2028,21 @@
       document.getElementById('btn-granularity-month').addEventListener('click', function() { self.switchGranularity('month'); });
       document.getElementById('btn-granularity-week').addEventListener('click', function() { self.switchGranularity('week'); });
 
-      document.getElementById('btn-add-task').addEventListener('click', function() {
-        var projects = ProjectManager.getProjects();
-        if (projects.length === 0) {
-          alert('请先创建项目');
-          self.showProjectManager();
-          return;
-        }
-        if (projects.length === 1) {
-          self.showAddTask(projects[0].id);
-        } else {
-          self._showProjectSelector(function(projectId) {
-            self.showAddTask(projectId);
-          });
-        }
-      });
-
-      document.getElementById('btn-add-project').addEventListener('click', function() {
-        self.showAddProject();
+      document.getElementById('btn-add-root-task').addEventListener('click', function() {
+        self.showAddTask(null);
       });
     },
 
     switchView: function(view) {
       this.currentView = view;
-      ProjectManager.setSetting('lastView', view);
+      TaskManager.setSetting('lastView', view);
       this._updateViewButtons();
       this.renderAll();
     },
 
     switchGranularity: function(g) {
       GanttView.granularity = g;
-      ProjectManager.setSetting('lastGranularity', g);
+      TaskManager.setSetting('lastGranularity', g);
       this._updateGranularityButtons();
       if (this.currentView === 'gantt') {
         GanttView.render();
@@ -1804,76 +2061,50 @@
     },
 
     _updateStatusBar: function() {
-      var projects = ProjectManager.getProjects();
-      var tasks = ProjectManager.getAllTasks();
-      var done = tasks.filter(function(t) { return t.status === 'done'; }).length;
-      var inProgress = tasks.filter(function(t) { return t.status === 'inProgress'; }).length;
+      var allTasks = TaskManager.getAllTasks();
+      var leafTasks = allTasks.filter(function(t) { return TaskManager.getChildren(t.id).length === 0; });
+      var done = leafTasks.filter(function(t) { return t.status === 'done'; }).length;
+      var inProgress = leafTasks.filter(function(t) { return t.status === 'inProgress'; }).length;
       document.getElementById('status-text').textContent =
-        projects.length + ' 个项目 · ' + tasks.length + ' 个任务（进行中 ' + inProgress + '，已完成 ' + done + '）';
+        allTasks.length + ' 个任务 · ' + leafTasks.length + ' 个叶子任务（进行中 ' + inProgress + '，已完成 ' + done + '）';
+      document.getElementById('status-info').textContent = 'PMWEB v2.0';
     },
 
-    // -- Project operations --
-    showProjectManager: function() {
-      var projects = ProjectManager.getProjects();
-      var listHtml = '';
-      projects.forEach(function(p) {
-        listHtml += '<div style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0f0;gap:8px;">';
-        listHtml += '<span style="width:14px;height:14px;border-radius:50%;background:' + p.color + ';flex-shrink:0;"></span>';
-        listHtml += '<span style="flex:1;">' + _escapeHtml(p.name) + '</span>';
-        listHtml += '<button style="padding:2px 8px;border:1px solid #ddd;border-radius:3px;background:#fff;cursor:pointer;font-size:12px;" onclick="App.showEditProject(\'' + _escapeHtml(p.id) + '\')">编辑</button>';
-        listHtml += '<button style="padding:2px 8px;border:1px solid #ddd;border-radius:3px;background:#fff;cursor:pointer;font-size:12px;color:var(--color-danger);" onclick="App.deleteProject(\'' + _escapeHtml(p.id) + '\')">删除</button>';
-        listHtml += '</div>';
-      });
-      if (projects.length === 0) {
-        listHtml = '<p style="color:var(--color-text-light);text-align:center;padding:16px;">暂无项目</p>';
+    // -- Highlight sync --
+    onTaskSelected: function(taskId) {
+      TreeView.selectedTaskId = taskId;
+      if (this.currentView === 'gantt') {
+        GanttView.selectBar(taskId);
+      } else {
+        CalendarView.selectBar(taskId);
       }
-
-      ModalManager.open(
-        '<div class="modal-title">项目管理</div>'
-        + '<div style="max-height:300px;overflow-y:auto;">' + listHtml + '</div>'
-        + '<div class="modal-actions">'
-        + '<button onclick="ModalManager.close()">关闭</button>'
-        + '<button class="btn-primary" onclick="ModalManager.close();App.showAddProject();">新建项目</button>'
-        + '</div>'
-      );
     },
 
-    showAddProject: function() {
-      var self = this;
-      ModalManager.showProjectForm(null, function(data) {
-        var p = ProjectManager.addProject(data.name);
-        if (p && data.color) ProjectManager.updateProject(p.id, { color: data.color });
-        self.renderAll();
-      });
+    onTaskHovered: function(taskId) {
+      if (this.currentView === 'gantt') {
+        if (taskId) GanttView.highlightBar(taskId);
+        else GanttView.clearHighlight();
+      } else {
+        if (taskId) CalendarView.highlightBar(taskId);
+        else CalendarView.clearHighlight();
+      }
     },
 
-    showEditProject: function(projectId) {
-      var self = this;
-      var project = ProjectManager.data.projects.find(function(p) { return p.id === projectId; });
-      if (!project) return;
-      ModalManager.showProjectForm(project, function(data) {
-        ProjectManager.updateProject(projectId, data);
-        self.renderAll();
-      });
-    },
-
-    deleteProject: function(projectId) {
-      var self = this;
-      var project = ProjectManager.data.projects.find(function(p) { return p.id === projectId; });
-      if (!project) return;
-      ModalManager.confirm('确定要删除项目「' + _escapeHtml(project.name) + '」及其所有任务和里程碑吗？', function() {
-        ProjectManager.deleteProject(projectId);
-        self.renderAll();
-      });
+    onGanttTaskClicked: function(taskId) {
+      TreeView.highlightTask(taskId);
+      TreeView.selectedTaskId = taskId;
+      if (this.currentView === 'gantt') {
+        GanttView.selectBar(taskId);
+      }
     },
 
     // -- Task operations --
-    showAddTask: function(projectId) {
+    showAddTask: function(parentId) {
       var self = this;
-      ModalManager.showTaskForm(null, projectId, function(data) {
-        var t = ProjectManager.addTask(data.projectId, data.name, data.startDate, data.endDate);
+      ModalManager.showTaskForm(null, parentId, function(data) {
+        var t = TaskManager.addTask(data.parentId, data.name);
         if (t) {
-          ProjectManager.updateTask(t.id, { description: data.description, assignee: data.assignee, status: data.status });
+          TaskManager.updateTask(t.id, { description: data.description, assignee: data.assignee, startDate: data.startDate, endDate: data.endDate, status: data.status });
         }
         self.renderAll();
       });
@@ -1881,65 +2112,86 @@
 
     showEditTask: function(taskId) {
       var self = this;
-      var task = ProjectManager.data.tasks.find(function(t) { return t.id === taskId; });
+      var task = TaskManager.getTask(taskId);
       if (!task) return;
-      ModalManager.showTaskForm(task, task.projectId, function(data) {
-        ProjectManager.updateTask(taskId, data);
+      ModalManager.showTaskForm(task, task.parentId, function(data) {
+        TaskManager.updateTask(taskId, data);
         self.renderAll();
       });
     },
 
     deleteTask: function(taskId) {
       var self = this;
-      var task = ProjectManager.data.tasks.find(function(t) { return t.id === taskId; });
+      var task = TaskManager.getTask(taskId);
       if (!task) return;
-      ModalManager.confirm('确定要删除任务「' + _escapeHtml(task.name) + '」吗？', function() {
-        ProjectManager.deleteTask(taskId);
+      ModalManager.confirm('确定要删除任务「' + _escapeHtml(task.name) + '」及其所有子任务吗？', function() {
+        TaskManager.deleteTask(taskId);
         self.renderAll();
+      });
+    },
+
+    // -- Color picker --
+    showColorPicker: function(taskId) {
+      var task = TaskManager.getTask(taskId);
+      if (!task) return;
+      var currentColor = TaskManager.getEffectiveColor(task);
+      var self = this;
+
+      var swatchesHtml = TaskManager.COLORS.map(function(c) {
+        return '<span class="color-swatch" data-color="' + c + '" style="display:inline-block;width:28px;height:28px;border-radius:50%;cursor:pointer;margin:3px;border:2px solid ' + (c === currentColor ? '#333' : 'transparent') + ';background:' + c + '"></span>';
+      }).join('');
+
+      ModalManager.open(
+        '<div class="modal-title">选择颜色</div>'
+        + '<div style="padding:8px 0;">' + swatchesHtml + '</div>'
+        + '<div class="modal-actions">'
+        + '<button onclick="ModalManager.close()">取消</button>'
+        + '</div>'
+      );
+
+      document.querySelectorAll('.color-swatch').forEach(function(sw) {
+        sw.addEventListener('click', function() {
+          TaskManager.updateTask(taskId, { color: sw.dataset.color });
+          ModalManager.close();
+          self.renderAll();
+        });
       });
     },
 
     // -- Milestone operations --
-    showAddTaskMilestone: function(taskId) {
+    showAddMilestoneAtDate: function(taskId, date) {
       var self = this;
       ModalManager.showMilestoneForm(null, { taskId: taskId }, function(data) {
-        ProjectManager.addMilestone(data.name, data.date, data.icon, { taskId: data.taskId });
+        TaskManager.addMilestone(data.taskId, data.name, data.date, data.icon);
         self.renderAll();
       });
-    },
-
-    showAddProjectMilestone: function(projectId) {
-      var self = this;
-      ModalManager.showMilestoneForm(null, { projectId: projectId }, function(data) {
-        ProjectManager.addMilestone(data.name, data.date, data.icon, { projectId: data.projectId });
-        self.renderAll();
-      });
+      var dateInput = document.getElementById('modal-ms-date');
+      if (dateInput) dateInput.value = date;
     },
 
     showEditMilestone: function(milestoneId) {
       var self = this;
-      var milestone = ProjectManager.data.milestones.find(function(m) { return m.id === milestoneId; });
+      var milestone = TaskManager.data.milestones.find(function(m) { return m.id === milestoneId; });
       if (!milestone) return;
-      var parentInfo = milestone.taskId ? { taskId: milestone.taskId } : { projectId: milestone.projectId };
-      ModalManager.showMilestoneForm(milestone, parentInfo, function(data) {
-        ProjectManager.updateMilestone(milestoneId, data);
+      ModalManager.showMilestoneForm(milestone, { taskId: milestone.taskId }, function(data) {
+        TaskManager.updateMilestone(milestoneId, data);
         self.renderAll();
       });
     },
 
     deleteMilestone: function(milestoneId) {
       var self = this;
-      var milestone = ProjectManager.data.milestones.find(function(m) { return m.id === milestoneId; });
+      var milestone = TaskManager.data.milestones.find(function(m) { return m.id === milestoneId; });
       if (!milestone) return;
       ModalManager.confirm('确定要删除里程碑「' + _escapeHtml(milestone.name) + '」吗？', function() {
-        ProjectManager.deleteMilestone(milestoneId);
+        TaskManager.deleteMilestone(milestoneId);
         self.renderAll();
       });
     },
 
     // -- Import/Export --
     exportData: function() {
-      DataStore.exportJSON(ProjectManager.data);
+      DataStore.exportJSON(TaskManager.data);
     },
 
     importData: function() {
@@ -1952,7 +2204,7 @@
         if (!file) return;
         DataStore.importJSON(file).then(function(data) {
           ModalManager.confirm('导入将覆盖当前所有数据，确定继续吗？', function() {
-            ProjectManager.replaceData(data);
+            TaskManager.replaceData(data);
             self.renderAll();
           });
         }).catch(function(err) {
@@ -1960,28 +2212,6 @@
         });
       });
       input.click();
-    },
-
-    // -- Helper: project selector --
-    _showProjectSelector: function(onSelect) {
-      var projects = ProjectManager.getProjects();
-      var listHtml = '';
-      projects.forEach(function(p) {
-        listHtml += '<div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0f0;gap:8px;cursor:pointer;" class="project-select-item" data-project-id="' + p.id + '">';
-        listHtml += '<span style="width:12px;height:12px;border-radius:50%;background:' + p.color + ';"></span>';
-        listHtml += '<span>' + _escapeHtml(p.name) + '</span>';
-        listHtml += '</div>';
-      });
-      ModalManager.open(
-        '<div class="modal-title">选择项目</div>'
-        + '<div>' + listHtml + '</div>'
-      );
-      document.querySelectorAll('.project-select-item').forEach(function(el) {
-        el.addEventListener('click', function() {
-          ModalManager.close();
-          onSelect(el.dataset.projectId);
-        });
-      });
     }
   };
 
