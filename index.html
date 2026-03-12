@@ -1602,6 +1602,18 @@
           var dateAtClick = self._xToDate(barStartX + clickX);
           App.showAddMilestoneAtDate(taskId, dateAtClick);
         });
+        el.addEventListener('contextmenu', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var taskId = el.dataset.taskId;
+          var ganttBody = self.container.querySelector('.gantt-body');
+          var rect = ganttBody.getBoundingClientRect();
+          var clickX = e.clientX - rect.left + ganttBody.scrollLeft;
+          var dateAtClick = self._xToDate(clickX);
+          TreeView.showContextMenu(e.clientX, e.clientY, [
+            { label: '添加里程碑', action: function() { App.showAddMilestoneAtDate(taskId, dateAtClick); } }
+          ]);
+        });
       });
 
       this.container.querySelectorAll('.gantt-milestone').forEach(function(el) {
