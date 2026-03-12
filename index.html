@@ -1313,6 +1313,16 @@
       this.contextMenu.style.top = y + 'px';
       this.contextMenu.classList.add('active');
 
+      // Boundary detection - adjust if menu overflows viewport
+      var rect = this.contextMenu.getBoundingClientRect();
+      var pad = 4;
+      if (rect.right > window.innerWidth - pad) {
+        this.contextMenu.style.left = (x - rect.width) + 'px';
+      }
+      if (rect.bottom > window.innerHeight - pad) {
+        this.contextMenu.style.top = (y - rect.height) + 'px';
+      }
+
       this.contextMenu.querySelectorAll('.context-menu-item').forEach(function(el, i) {
         el.addEventListener('click', function(e) {
           e.stopPropagation();
@@ -1589,6 +1599,12 @@
       var self = this;
 
       this.container.querySelectorAll('.gantt-bar').forEach(function(el) {
+        el.addEventListener('mouseenter', function() {
+          TreeView.setHoverHighlight(el.dataset.taskId);
+        });
+        el.addEventListener('mouseleave', function() {
+          TreeView.setHoverHighlight(null);
+        });
         el.addEventListener('click', function(e) {
           if (e.detail === 1) {
             App.onGanttTaskClicked(el.dataset.taskId);
@@ -1706,9 +1722,9 @@
           var offsetX = e.clientX - rect.left;
           var barWidth = rect.width;
 
-          if (offsetX < 5) {
+          if (offsetX < 4) {
             self._startDrag(e, 'resize-left', task, el);
-          } else if (offsetX > barWidth - 5) {
+          } else if (offsetX > barWidth - 4) {
             self._startDrag(e, 'resize-right', task, el);
           } else {
             self._startDrag(e, 'move', task, el);
@@ -1716,10 +1732,10 @@
         });
 
         el.addEventListener('mousemove', function(e) {
-          if (self.isDragging) return;
+          if (self.isDragging || self._pendingDrag) return;
           var rect = el.getBoundingClientRect();
           var offsetX = e.clientX - rect.left;
-          if (offsetX < 5 || offsetX > rect.width - 5) {
+          if (offsetX < 4 || offsetX > rect.width - 4) {
             el.style.cursor = 'col-resize';
           } else {
             el.style.cursor = 'grab';
@@ -1798,12 +1814,12 @@
       ghost.className = 'drag-ghost';
 
       if (type === 'milestone') {
-        ghost.innerHTML = '<span class="drag-ghost-milestone">' + element.textContent + '</span>';
+        ghost.innerHTML = '<span class="drag-ghost-milestone">' + _escapeHtml(element.textContent) + '</span>';
         ghost.style.width = rect.width + 'px';
         ghost.style.height = rect.height + 'px';
       } else {
         var bgColor = element.style.background || getComputedStyle(element).backgroundColor;
-        ghost.innerHTML = '<div class="drag-ghost-bar" style="background:' + bgColor + ';width:' + rect.width + 'px;">' + element.textContent + '</div>';
+        ghost.innerHTML = '<div class="drag-ghost-bar" style="background:' + bgColor + ';width:' + rect.width + 'px;">' + _escapeHtml(element.textContent) + '</div>';
       }
 
       ghost.style.left = rect.left + 'px';
