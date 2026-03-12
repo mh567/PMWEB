@@ -403,7 +403,7 @@
       height: 20px;
       border-radius: 3px;
       top: 8px;
-      cursor: pointer;
+      cursor: grab;
       font-size: 11px;
       color: #fff;
       display: flex;
@@ -411,9 +411,14 @@
       padding: 0 6px;
       overflow: hidden;
       white-space: nowrap;
-      min-width: 4px;
+      min-width: 20px;
+      transition: transform 0.12s, box-shadow 0.12s;
     }
-    .gantt-bar:hover { filter: brightness(1.1); }
+    .gantt-bar:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    }
     .gantt-bar.status-done { opacity: 0.6; }
     .gantt-bar.highlight {
       filter: brightness(1.2);
@@ -428,7 +433,7 @@
       position: absolute;
       top: 4px;
       width: 20px; height: 20px;
-      cursor: pointer;
+      cursor: grab;
       font-size: 16px;
       display: flex;
       align-items: center;
@@ -439,7 +444,16 @@
       filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff);
       transition: transform 0.15s;
     }
-    .gantt-milestone:hover { transform: translateX(-10px) scale(1.3); }
+    .gantt-milestone::before {
+      content: '';
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      top: -4px;
+      left: -4px;
+      border-radius: 50%;
+    }
+    .gantt-milestone:hover { transform: translateX(-10px) scale(1.2); }
     .gantt-drag-tooltip {
       position: fixed;
       background: rgba(0,0,0,0.8);
@@ -450,6 +464,38 @@
       pointer-events: none;
       z-index: 100;
       white-space: nowrap;
+    }
+    .drag-ghost {
+      position: fixed;
+      opacity: 0.6;
+      pointer-events: none;
+      z-index: 9999;
+    }
+    .drag-ghost-bar {
+      height: 20px;
+      border-radius: 3px;
+      font-size: 11px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      padding: 0 6px;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    .drag-ghost-milestone {
+      font-size: 16px;
+      color: #E74C3C;
+      filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff);
+    }
+    .snap-line {
+      position: absolute;
+      top: 0;
+      width: 1px;
+      height: 100%;
+      background: var(--color-primary);
+      opacity: 0.5;
+      pointer-events: none;
+      z-index: 50;
     }
     .gantt-today-line {
       position: absolute;
@@ -1543,14 +1589,6 @@
       var self = this;
 
       this.container.querySelectorAll('.gantt-bar').forEach(function(el) {
-        el.addEventListener('mouseenter', function() {
-          el.classList.add('highlight');
-          TreeView.setHoverHighlight(el.dataset.taskId);
-        });
-        el.addEventListener('mouseleave', function() {
-          el.classList.remove('highlight');
-          TreeView.setHoverHighlight(null);
-        });
         el.addEventListener('click', function(e) {
           if (e.detail === 1) {
             App.onGanttTaskClicked(el.dataset.taskId);
