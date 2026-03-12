@@ -1522,7 +1522,8 @@
     _xToDate: function(x) {
       var totalWidth = this.cells.length * this.cellWidth;
       var totalDays = this._daysBetween(this.startDate, this.endDate);
-      var dayOffset = Math.round((x / totalWidth) * totalDays);
+      // Use floor instead of round to get the correct date at position
+      var dayOffset = Math.floor((x / totalWidth) * totalDays);
       var date = new Date(this.startDate);
       date.setDate(date.getDate() + dayOffset);
       return DataStore.formatDate(date);
