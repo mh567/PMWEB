@@ -368,11 +368,19 @@
     .gantt-header-cell {
       flex-shrink: 0;
       text-align: center;
-      font-size: 12px;
+      font-size: 11px;
       color: var(--color-text-light);
       border-right: 1px solid #eee;
-      padding: 6px 0;
+      padding: 3px 0;
       position: relative;
+      line-height: 1.3;
+    }
+    .gantt-header-cell .weekday {
+      font-size: 10px;
+      color: #888;
+    }
+    .gantt-header-cell.weekend .weekday {
+      color: #e74c3c;
     }
     .gantt-body {
       flex: 1;
@@ -438,7 +446,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 3;
+      z-index: 5;
       transform: translateX(-10px);
       color: #E74C3C;
       filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff);
@@ -1236,6 +1244,22 @@
       this.container.querySelectorAll('.tree-node-row').forEach(function(el) {
         var taskId = el.dataset.taskId;
 
+        // Status icon click - cycle status
+        var statusIcon = el.querySelector('.status-icon');
+        if (statusIcon) {
+          statusIcon.style.cursor = 'pointer';
+          statusIcon.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var task = TaskManager.getTask(taskId);
+            if (!task) return;
+            var newStatus = task.status === 'todo' ? 'inProgress' :
+                            task.status === 'inProgress' ? 'done' : 'todo';
+            TaskManager.updateTask(taskId, { status: newStatus });
+            self.render();
+            App.renderAll();
+          });
+        }
+
         el.addEventListener('click', function(e) {
           if (e.target.closest('.node-actions')) return;
           var children = TaskManager.getChildren(taskId);
@@ -1265,10 +1289,14 @@
         el.addEventListener('contextmenu', function(e) {
           e.preventDefault();
           var depth = TaskManager.getDepth(taskId);
+          var task = TaskManager.getTask(taskId);
           var items = [];
           if (depth < 2) {
             items.push({ label: '添加子任务', action: function() { App.showAddTask(taskId); } });
           }
+          items.push({ label: '标记为待办', action: function() { TaskManager.updateTask(taskId, { status: 'todo' }); self.render(); App.renderAll(); } });
+          items.push({ label: '标记为进行中', action: function() { TaskManager.updateTask(taskId, { status: 'inProgress' }); self.render(); App.renderAll(); } });
+          items.push({ label: '标记为已完成', action: function() { TaskManager.updateTask(taskId, { status: 'done' }); self.render(); App.renderAll(); } });
           items.push({ label: '编辑任务', action: function() { App.showEditTask(taskId); } });
           items.push({ label: '设置颜色', action: function() { App.showColorPicker(taskId); } });
           items.push({ label: '删除任务', action: function() { App.deleteTask(taskId); }, danger: true });
@@ -1456,11 +1484,13 @@
         }
       } else {
         this.cellWidth = 40;
+        var weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
         while (d <= this.endDate) {
           var start = new Date(d);
           var dayOfWeek = d.getDay();
+          var weekdayLabel = weekdays[(dayOfWeek + 6) % 7];
           var label = (d.getMonth() + 1) + '/' + d.getDate();
-          this.cells.push({ label: label, start: start, end: new Date(d), days: 1, isWeekend: dayOfWeek === 0 || dayOfWeek === 6 });
+          this.cells.push({ label: label, weekday: weekdayLabel, start: start, end: new Date(d), days: 1, isWeekend: dayOfWeek === 0 || dayOfWeek === 6 });
           d.setDate(d.getDate() + 1);
         }
       }
@@ -1543,7 +1573,10 @@
 
       var headerHtml = '<div class="gantt-header" style="width:' + totalWidth + 'px;">';
       this.cells.forEach(function(cell) {
-        headerHtml += '<div class="gantt-header-cell" style="width:' + self.cellWidth + 'px;">' + cell.label + '</div>';
+        var cls = 'gantt-header-cell';
+        if (cell.isWeekend) cls += ' weekend';
+        var weekdayHtml = cell.weekday ? '<div class="weekday">' + cell.weekday + '</div>' : '';
+        headerHtml += '<div class="' + cls + '" style="width:' + self.cellWidth + 'px;">' + weekdayHtml + '<div>' + cell.label + '</div></div>';
       });
       headerHtml += '</div>';
 
@@ -1918,13 +1951,13 @@
       } else if (this.dragType === 'resize-left') {
         var newStart = this._addDays(this.originalStartDate, daysDelta);
         if (newStart >= this.originalEndDate) return;
-        this.tooltip.textContent = '开始: ' + newStart;
+        this.tooltip.textContent = '开始: ' + this.originalStartDate + ' → ' + newStart;
         this.dragTarget._tempStart = newStart;
         this._updateSnapLine(newStart);
       } else if (this.dragType === 'resize-right') {
         var newEnd = this._addDays(this.originalEndDate, daysDelta);
         if (newEnd <= this.originalStartDate) return;
-        this.tooltip.textContent = '结束: ' + newEnd;
+        this.tooltip.textContent = '结束: ' + this.originalEndDate + ' → ' + newEnd;
         this.dragTarget._tempEnd = newEnd;
         this._updateSnapLine(newEnd);
       } else if (this.dragType === 'milestone') {
