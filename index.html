@@ -440,6 +440,104 @@
     }
     .context-menu-item:hover { background: #f0f4ff; }
     .context-menu-item.danger { color: var(--color-danger); }
+
+    /* == 甘特图 == */
+    .gantt-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+    .gantt-header {
+      display: flex;
+      border-bottom: 1px solid var(--color-border);
+      background: var(--color-surface);
+      flex-shrink: 0;
+    }
+    .gantt-header-cell {
+      flex-shrink: 0;
+      text-align: center;
+      font-size: 12px;
+      color: var(--color-text-light);
+      border-right: 1px solid #eee;
+      padding: 6px 0;
+      position: relative;
+    }
+    .gantt-body {
+      flex: 1;
+      overflow: auto;
+      position: relative;
+    }
+    .gantt-row {
+      display: flex;
+      position: relative;
+      height: 36px;
+      border-bottom: 1px solid #f0f0f0;
+      align-items: center;
+    }
+    .gantt-row:hover { background: #fafbfe; }
+    .gantt-grid-cell {
+      flex-shrink: 0;
+      height: 100%;
+      border-right: 1px solid #f0f0f0;
+    }
+    .gantt-grid-cell.today {
+      background: rgba(74, 144, 217, 0.06);
+    }
+    .gantt-grid-cell.weekend {
+      background: rgba(0,0,0,0.02);
+    }
+    .gantt-bar {
+      position: absolute;
+      height: 20px;
+      border-radius: 3px;
+      top: 8px;
+      cursor: pointer;
+      font-size: 11px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      padding: 0 6px;
+      overflow: hidden;
+      white-space: nowrap;
+      min-width: 4px;
+    }
+    .gantt-bar:hover { filter: brightness(1.1); }
+    .gantt-bar.status-done { opacity: 0.6; }
+    .gantt-milestone {
+      position: absolute;
+      top: 6px;
+      width: 16px; height: 16px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      transform: translateX(-8px);
+    }
+    .gantt-milestone:hover { transform: translateX(-8px) scale(1.3); }
+    .gantt-milestone-row {
+      height: 28px;
+      background: #fafafa;
+    }
+    .gantt-today-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: var(--color-danger);
+      z-index: 5;
+      pointer-events: none;
+    }
+    .gantt-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--color-text-light);
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -1187,6 +1285,225 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
   }
+
+  // ============================================================
+  // == GanttView: 甘特图渲染、时间轴计算、粒度切换
+  // ============================================================
+  const GanttView = {
+    container: null,
+    granularity: 'month', // 'year' | 'month' | 'week'
+    cellWidth: 80,
+    startDate: null,
+    endDate: null,
+    cells: [],
+
+    init(container) {
+      this.container = container;
+    },
+
+    setGranularity(g) {
+      this.granularity = g;
+      this.render();
+    },
+
+    _calcDateRange() {
+      var tasks = ProjectManager.getAllTasks();
+      var milestones = ProjectManager.getAllMilestones();
+      var allDates = [];
+
+      tasks.forEach(function(t) { allDates.push(t.startDate, t.endDate); });
+      milestones.forEach(function(m) { allDates.push(m.date); });
+
+      if (allDates.length === 0) {
+        var now = new Date();
+        this.startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        this.endDate = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+        return;
+      }
+
+      allDates.sort();
+      var minDate = new Date(allDates[0]);
+      var maxDate = new Date(allDates[allDates.length - 1]);
+
+      var pad = this.granularity === 'year' ? 30 : this.granularity === 'month' ? 14 : 7;
+      this.startDate = new Date(minDate);
+      this.startDate.setDate(this.startDate.getDate() - pad);
+      this.endDate = new Date(maxDate);
+      this.endDate.setDate(this.endDate.getDate() + pad);
+
+      if (this.granularity === 'year') {
+        this.startDate.setDate(1);
+      } else if (this.granularity === 'month') {
+        var day = this.startDate.getDay();
+        this.startDate.setDate(this.startDate.getDate() - ((day + 6) % 7));
+      }
+    },
+
+    _generateCells() {
+      this.cells = [];
+      var d = new Date(this.startDate);
+
+      if (this.granularity === 'year') {
+        this.cellWidth = 80;
+        d.setDate(1);
+        while (d <= this.endDate) {
+          var label = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+          var start = new Date(d);
+          d.setMonth(d.getMonth() + 1);
+          var end = new Date(d);
+          end.setDate(end.getDate() - 1);
+          this.cells.push({ label: label, start: start, end: end, days: this._daysBetween(start, end) + 1 });
+        }
+      } else if (this.granularity === 'month') {
+        this.cellWidth = 80;
+        var day = d.getDay();
+        d.setDate(d.getDate() - ((day + 6) % 7));
+        while (d <= this.endDate) {
+          var start = new Date(d);
+          d.setDate(d.getDate() + 7);
+          var end = new Date(d);
+          end.setDate(end.getDate() - 1);
+          var weekNum = this._getWeekNumber(start);
+          this.cells.push({ label: 'W' + weekNum, start: start, end: end, days: 7 });
+        }
+      } else {
+        this.cellWidth = 40;
+        while (d <= this.endDate) {
+          var start = new Date(d);
+          var dayOfWeek = d.getDay();
+          var label = (d.getMonth() + 1) + '/' + d.getDate();
+          this.cells.push({ label: label, start: start, end: new Date(d), days: 1, isWeekend: dayOfWeek === 0 || dayOfWeek === 6 });
+          d.setDate(d.getDate() + 1);
+        }
+      }
+    },
+
+    _dateToX(dateStr) {
+      var date = new Date(dateStr);
+      var totalDays = this._daysBetween(this.startDate, this.endDate);
+      var dayOffset = this._daysBetween(this.startDate, date);
+      var totalWidth = this.cells.length * this.cellWidth;
+      return (dayOffset / totalDays) * totalWidth;
+    },
+
+    _dateRangeToWidth(startStr, endStr) {
+      var x1 = this._dateToX(startStr);
+      var x2 = this._dateToX(endStr);
+      var oneDayWidth = this._dateToX(
+        DataStore.formatDate(new Date(new Date(startStr).getTime() + 86400000))
+      ) - this._dateToX(startStr);
+      return Math.max(x2 - x1 + oneDayWidth, 4);
+    },
+
+    _daysBetween(d1, d2) {
+      var t1 = new Date(d1).setHours(0, 0, 0, 0);
+      var t2 = new Date(d2).setHours(0, 0, 0, 0);
+      return Math.round((t2 - t1) / 86400000);
+    },
+
+    _getWeekNumber(d) {
+      var date = new Date(d);
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+      var week1 = new Date(date.getFullYear(), 0, 4);
+      return 1 + Math.round(((date - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+    },
+
+    render() {
+      this._calcDateRange();
+      this._generateCells();
+
+      var projects = ProjectManager.getProjects();
+      var allTasks = ProjectManager.getAllTasks();
+
+      // Empty state
+      if (allTasks.length === 0) {
+        this.container.innerHTML = '<div class="gantt-empty">暂无任务，请先创建项目和任务</div>';
+        return;
+      }
+
+      var totalWidth = this.cells.length * this.cellWidth;
+      var today = DataStore.formatDate(new Date());
+      var self = this;
+
+      // Header
+      var headerHtml = '<div class="gantt-header" style="width:' + totalWidth + 'px;">';
+      this.cells.forEach(function(cell) {
+        headerHtml += '<div class="gantt-header-cell" style="width:' + self.cellWidth + 'px;">' + cell.label + '</div>';
+      });
+      headerHtml += '</div>';
+
+      // Body
+      var bodyHtml = '<div class="gantt-body"><div style="position:relative;width:' + totalWidth + 'px;">';
+
+      // Today line
+      var todayX = this._dateToX(today);
+      if (todayX >= 0 && todayX <= totalWidth) {
+        bodyHtml += '<div class="gantt-today-line" style="left:' + todayX + 'px;"></div>';
+      }
+
+      projects.forEach(function(project) {
+        var tasks = ProjectManager.getTasksByProject(project.id);
+        var projectMilestones = ProjectManager.getMilestonesByProject(project.id);
+
+        // Project-level milestones row
+        if (projectMilestones.length > 0) {
+          bodyHtml += '<div class="gantt-row gantt-milestone-row" style="width:' + totalWidth + 'px;">';
+          self.cells.forEach(function(cell) {
+            var cls = cell.isWeekend ? ' weekend' : '';
+            bodyHtml += '<div class="gantt-grid-cell' + cls + '" style="width:' + self.cellWidth + 'px;"></div>';
+          });
+          projectMilestones.forEach(function(ms) {
+            var x = self._dateToX(ms.date);
+            bodyHtml += '<div class="gantt-milestone" style="left:' + x + 'px;color:' + project.color + ';" data-milestone-id="' + ms.id + '" title="' + _escapeHtml(ms.name) + ' (' + ms.date + ')">' + ms.icon + '</div>';
+          });
+          bodyHtml += '</div>';
+        }
+
+        tasks.forEach(function(task) {
+          bodyHtml += '<div class="gantt-row" style="width:' + totalWidth + 'px;">';
+          self.cells.forEach(function(cell) {
+            var cls = cell.isWeekend ? ' weekend' : '';
+            bodyHtml += '<div class="gantt-grid-cell' + cls + '" style="width:' + self.cellWidth + 'px;"></div>';
+          });
+
+          // Task bar
+          var barX = self._dateToX(task.startDate);
+          var barW = self._dateRangeToWidth(task.startDate, task.endDate);
+          var statusCls = task.status === 'done' ? ' status-done' : '';
+          var assigneeText = task.assignee ? ' [' + _escapeHtml(task.assignee) + ']' : '';
+          bodyHtml += '<div class="gantt-bar' + statusCls + '" style="left:' + barX + 'px;width:' + barW + 'px;background:' + project.color + ';" data-task-id="' + task.id + '" title="' + _escapeHtml(task.name) + assigneeText + ' (' + task.startDate + ' ~ ' + task.endDate + ')">' + _escapeHtml(task.name) + '</div>';
+
+          // Task-level milestones
+          var taskMilestones = ProjectManager.getMilestonesByTask(task.id);
+          taskMilestones.forEach(function(ms) {
+            var msX = self._dateToX(ms.date);
+            bodyHtml += '<div class="gantt-milestone" style="left:' + msX + 'px;color:' + project.color + ';" data-milestone-id="' + ms.id + '" title="' + _escapeHtml(ms.name) + ' (' + ms.date + ')">' + ms.icon + '</div>';
+          });
+
+          bodyHtml += '</div>';
+        });
+      });
+
+      bodyHtml += '</div></div>';
+
+      this.container.innerHTML = '<div class="gantt-container">' + headerHtml + bodyHtml + '</div>';
+
+      // Bind click events
+      this.container.querySelectorAll('.gantt-bar').forEach(function(el) {
+        el.addEventListener('click', function() { App.showEditTask(el.dataset.taskId); });
+      });
+      this.container.querySelectorAll('.gantt-milestone').forEach(function(el) {
+        el.addEventListener('click', function() { App.showEditMilestone(el.dataset.milestoneId); });
+      });
+
+      // Scroll to today
+      var ganttBody = this.container.querySelector('.gantt-body');
+      if (ganttBody && todayX > 0) {
+        ganttBody.scrollLeft = Math.max(0, todayX - ganttBody.clientWidth / 2);
+      }
+    }
+  };
 
   // Temporary init (App controller will replace this later)
   (function() {
