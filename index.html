@@ -1887,23 +1887,16 @@
       this._ghost = ghost;
     },
 
-    _updateSnapLine: function(dateStr, isEndDate) {
+    _updateSnapLine: function(x) {
       // Remove existing snap line
       if (this._snapLine && this._snapLine.parentNode) {
         this._snapLine.parentNode.removeChild(this._snapLine);
       }
 
-      var ganttBody = document.querySelector('.gantt-body');
-      if (!ganttBody) return;
-
-      var x = GanttView._dateToX(dateStr);
       if (x <= 0) return;
 
-      // For end date, snap line should align to right edge of the date cell
-      if (isEndDate) {
-        var oneDayWidth = GanttView.cellWidth * this._daysPerCell();
-        x += oneDayWidth;
-      }
+      var ganttBody = document.querySelector('.gantt-body');
+      if (!ganttBody) return;
 
       var line = document.createElement('div');
       line.className = 'snap-line';
@@ -1962,6 +1955,15 @@
         }
       }
 
+      // Helper to convert ghost fixed position to gantt body relative position
+      var self = this;
+      var ghostToGanttX = function(ghostX) {
+        var ganttBody = document.querySelector('.gantt-body');
+        if (!ganttBody) return 0;
+        var ganttRect = ganttBody.getBoundingClientRect();
+        return ghostX - ganttRect.left + ganttBody.scrollLeft;
+      };
+
       if (this.dragType === 'move') {
         // Detect vertical drag intent for row merge
         if (Math.abs(deltaY) > 18) {
@@ -1991,26 +1993,33 @@
           this.dragTarget._tempStart = newStart;
           this.dragTarget._tempEnd = newEnd;
 
-          // Update snap line
-          this._updateSnapLine(newStart);
+          // Update snap line based on ghost position
+          var ghostLeft = parseFloat(this._ghost.style.left);
+          this._updateSnapLine(ghostToGanttX(ghostLeft));
         }
       } else if (this.dragType === 'resize-left') {
         var newStart = this._addDays(this.originalStartDate, daysDelta);
         if (newStart >= this.originalEndDate) return;
         this.tooltip.textContent = '开始: ' + this.originalStartDate + ' → ' + newStart;
         this.dragTarget._tempStart = newStart;
-        this._updateSnapLine(newStart);
+        // Snap line at ghost left edge
+        var ghostLeft = parseFloat(this._ghost.style.left);
+        this._updateSnapLine(ghostToGanttX(ghostLeft));
       } else if (this.dragType === 'resize-right') {
         var newEnd = this._addDays(this.originalEndDate, daysDelta);
         if (newEnd <= this.originalStartDate) return;
         this.tooltip.textContent = '结束: ' + this.originalEndDate + ' → ' + newEnd;
         this.dragTarget._tempEnd = newEnd;
-        this._updateSnapLine(newEnd, true);
+        // Snap line at ghost right edge
+        var ghostRight = parseFloat(this._ghost.style.left) + parseFloat(this._ghost.style.width);
+        this._updateSnapLine(ghostToGanttX(ghostRight));
       } else if (this.dragType === 'milestone') {
         var newDate = this._addDays(this.originalDate, daysDelta);
         this.tooltip.textContent = newDate;
         this.dragTarget._tempDate = newDate;
-        this._updateSnapLine(newDate);
+        // Snap line at ghost center (milestone is 20px wide)
+        var ghostCenter = parseFloat(this._ghost.style.left) + 10;
+        this._updateSnapLine(ghostToGanttX(ghostCenter));
       }
 
       this.tooltip.style.left = (e.clientX + 12) + 'px';
