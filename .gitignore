@@ -8,3 +8,6 @@
 
 # Node modules
 node_modules/
+
+# Superpowers tool generated files
+docs/superpowers/
