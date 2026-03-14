@@ -129,12 +129,31 @@
     /* ===== SIDEBAR ===== */
     #sidebar {
       width: var(--sidebar-width);
+      min-width: 180px;
+      max-width: 500px;
       flex-shrink: 0;
       background: var(--color-surface);
-      border-right: 1px solid var(--color-border);
       display: flex;
       flex-direction: column;
       overflow-y: auto;
+      position: relative;
+    }
+
+    #sidebar-resize-handle {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      cursor: col-resize;
+      background: transparent;
+      transition: background 0.15s;
+      z-index: 10;
+    }
+
+    #sidebar-resize-handle:hover,
+    #sidebar-resize-handle.dragging {
+      background: var(--color-primary);
     }
 
     #sidebar-header {
@@ -156,6 +175,7 @@
       flex: 1;
       padding: 8px 0;
       overflow-y: auto;
+      position: relative;
     }
 
     /* ===== CONTENT AREA ===== */
@@ -331,6 +351,26 @@
     .tree-node[data-depth="1"] > .tree-node-row { padding-left: 28px; }
     .tree-node[data-depth="2"] > .tree-node-row { padding-left: 48px; }
 
+    /* == Tree drag and drop == */
+    .tree-node-row[draggable="true"] {
+      cursor: grab;
+    }
+    .tree-node-row[draggable="true"]:active {
+      cursor: grabbing;
+    }
+    .tree-insert-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #4a90d9;
+      z-index: 100;
+      pointer-events: none;
+    }
+    .tree-insert-line.invalid {
+      background: #e74c3c;
+    }
+
     /* == 右键菜单 == */
     .context-menu {
       display: none;
@@ -358,6 +398,11 @@
       flex-direction: column;
       height: 100%;
       overflow: hidden;
+    }
+    .gantt-header-wrapper {
+      overflow: hidden;
+      flex-shrink: 0;
+      background: var(--color-surface);
     }
     .gantt-header {
       display: flex;
@@ -440,6 +485,11 @@
       box-shadow: 0 0 0 2px var(--color-primary), 0 0 12px rgba(74, 144, 217, 0.4);
       z-index: 4;
     }
+    .gantt-bar-dates {
+      opacity: 0.85;
+      margin-left: 4px;
+      font-size: 10px;
+    }
     .gantt-milestone {
       position: absolute;
       top: 4px;
@@ -463,6 +513,7 @@
       top: -4px;
       left: -4px;
       border-radius: 50%;
+      pointer-events: none;
     }
     .gantt-milestone:hover { transform: translateX(-10px) scale(1.2); }
     .gantt-drag-tooltip {
@@ -632,7 +683,8 @@
     <div class="toolbar-sep"></div>
     <div class="toolbar-group">
       <button class="btn" id="btn-import">导入</button>
-      <button class="btn" id="btn-export">导出</button>
+      <button class="btn" id="btn-export">导出JSON</button>
+      <button class="btn" id="btn-export-excel">导出Excel</button>
     </div>
     <div class="toolbar-sep"></div>
     <div class="btn-group" id="view-toggle-group">
@@ -652,6 +704,7 @@
 
     <!-- SIDEBAR -->
     <div id="sidebar">
+      <div id="sidebar-resize-handle"></div>
       <div id="sidebar-header">
         <h2>任务列表</h2>
       </div>
@@ -947,7 +1000,7 @@
         alert('结束日期不能早于开始日期');
         return null;
       }
-      var allowed = ['name', 'description', 'assignee', 'color', 'startDate', 'endDate', 'status', 'order', 'ganttRow'];
+      var allowed = ['name', 'description', 'assignee', 'color', 'startDate', 'endDate', 'status', 'order', 'ganttRow', 'parentId'];
       for (var i = 0; i < allowed.length; i++) {
         var key = allowed[i];
         if (updates[key] !== undefined) {
@@ -971,6 +1024,80 @@
         return idsToDelete.indexOf(t.id) === -1;
       });
       this._save();
+    },
+
+    moveTask: function(taskId, newParentId, newOrder) {
+      var task = this.getTask(taskId);
+      if (!task) return false;
+
+      // Prevent moving to self or descendant
+      if (taskId === newParentId) return false;
+      var descendants = this.getDescendants(taskId);
+      for (var i = 0; i < descendants.length; i++) {
+        if (descendants[i].id === newParentId) return false;
+      }
+
+      // Check depth limit (max 3 layers, depth 0-2)
+      var newDepth = 0;
+      if (newParentId) {
+        newDepth = this.getDepth(newParentId) + 1;
+      }
+
+      // Calculate max descendant depth
+      var maxDescendantDepth = 0;
+      if (descendants.length > 0) {
+        for (var i = 0; i < descendants.length; i++) {
+          var d = this.getDepth(descendants[i].id);
+          if (d > maxDescendantDepth) maxDescendantDepth = d;
+        }
+      }
+
+      // New depth + relative descendant depth must not exceed limit
+      var relativeDescendantDepth = maxDescendantDepth - this.getDepth(taskId);
+      if (newDepth + relativeDescendantDepth > 2) {
+        alert('移动后子任务层级将超过限制（最多支持 3 层）');
+        return false;
+      }
+
+      // Get old siblings to reorder
+      var oldSiblings = task.parentId ? this.getChildren(task.parentId) : this.getRootTasks();
+
+      // Get new siblings
+      var newSiblings = newParentId ? this.getChildren(newParentId) : this.getRootTasks();
+
+      // Remove task from old siblings list (for order recalculation)
+      oldSiblings = oldSiblings.filter(function(t) { return t.id !== taskId; });
+
+      // If same parent, remove from newSiblings too and adjust newOrder
+      if (task.parentId === newParentId) {
+        var oldIndex = newSiblings.findIndex(function(t) { return t.id === taskId; });
+        newSiblings = newSiblings.filter(function(t) { return t.id !== taskId; });
+        // Adjust newOrder if moving within same parent
+        if (oldIndex >= 0 && newOrder > oldIndex) {
+          newOrder--;
+        }
+      }
+
+      // Insert into new position
+      if (newOrder < 0) newOrder = 0;
+      if (newOrder > newSiblings.length) newOrder = newSiblings.length;
+
+      // Update task's parentId
+      task.parentId = newParentId;
+
+      // Rebuild order for old siblings
+      for (var i = 0; i < oldSiblings.length; i++) {
+        oldSiblings[i].order = i;
+      }
+
+      // Rebuild order for new siblings
+      newSiblings.splice(newOrder, 0, task);
+      for (var i = 0; i < newSiblings.length; i++) {
+        newSiblings[i].order = i;
+      }
+
+      this._save();
+      return true;
     },
 
     getMilestonesByTask: function(taskId) {
@@ -1213,7 +1340,7 @@
       else if (isCollapsed) arrowCls += ' collapsed';
 
       var html = '<div class="tree-node" data-task-id="' + task.id + '" data-depth="' + depth + '">';
-      html += '<div class="' + rowCls + '" data-task-id="' + task.id + '">';
+      html += '<div class="' + rowCls + '" data-task-id="' + task.id + '" draggable="true">';
       html += '<span class="' + arrowCls + '">▼</span>';
       html += '<span class="color-dot" style="background:' + color + '"></span>';
       html += '<span class="status-icon" style="color:' + statusColor + '">' + statusIcon + '</span>';
@@ -1305,6 +1432,27 @@
           items.push({ label: '删除任务', action: function() { App.deleteTask(taskId); }, danger: true });
           self.showContextMenu(e.clientX, e.clientY, items);
         });
+
+        // Drag and drop events
+        el.addEventListener('dragstart', function(e) {
+          self._dragStart(e, taskId);
+        });
+
+        el.addEventListener('dragend', function(e) {
+          self._dragEnd(e);
+        });
+
+        el.addEventListener('dragover', function(e) {
+          self._dragOver(e, taskId);
+        });
+
+        el.addEventListener('dragleave', function(e) {
+          self._dragLeave(e);
+        });
+
+        el.addEventListener('drop', function(e) {
+          self._drop(e, taskId);
+        });
       });
 
       this.container.querySelectorAll('.btn-add-child').forEach(function(btn) {
@@ -1385,6 +1533,174 @@
         var el = this.container.querySelector('.tree-node-row[data-task-id="' + taskId + '"]');
         if (el) el.classList.add('highlighted');
       }
+    },
+
+    // Drag and drop methods
+    _dragStart: function(e, taskId) {
+      this.draggedTaskId = taskId;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', taskId);
+      e.target.style.opacity = '0.5';
+    },
+
+    _dragEnd: function(e) {
+      this.draggedTaskId = null;
+      this._removeInsertLine();
+      document.querySelectorAll('.tree-node-row').forEach(function(el) {
+        el.style.opacity = '';
+      });
+    },
+
+    _getDropPosition: function(e, targetTaskId) {
+      var rect = e.currentTarget.getBoundingClientRect();
+      var y = e.clientY - rect.top;
+      var targetDepth = TaskManager.getDepth(targetTaskId);
+
+      // Determine drop position: 'before', 'after', 'child'
+      var arrowArea = e.target.classList.contains('arrow') || e.target.closest('.arrow');
+
+      if (arrowArea && targetDepth < 2) {
+        return 'child';
+      } else if (y < rect.height * 0.3) {
+        return 'before';
+      } else if (y > rect.height * 0.7) {
+        return 'after';
+      } else {
+        return 'child';
+      }
+    },
+
+    _dragOver: function(e, targetTaskId) {
+      e.preventDefault();
+      if (this.draggedTaskId === targetTaskId) return;
+
+      var position = this._getDropPosition(e, targetTaskId);
+      var isValid = this._isValidDrop(this.draggedTaskId, targetTaskId, position);
+
+      this._showInsertLine(e.currentTarget, position, isValid);
+      e.dataTransfer.dropEffect = isValid ? 'move' : 'none';
+    },
+
+    _dragLeave: function(e) {
+      this._removeInsertLine();
+    },
+
+    _drop: function(e, targetTaskId) {
+      e.preventDefault();
+      this._removeInsertLine();
+
+      if (!this.draggedTaskId || this.draggedTaskId === targetTaskId) return;
+
+      var position = this._getDropPosition(e, targetTaskId);
+
+      if (!this._isValidDrop(this.draggedTaskId, targetTaskId, position)) {
+        return;
+      }
+
+      // Calculate new parent and order
+      var newParentId, newOrder;
+      var targetTask = TaskManager.getTask(targetTaskId);
+
+      if (position === 'child') {
+        newParentId = targetTaskId;
+        var siblings = TaskManager.getChildren(targetTaskId);
+        newOrder = siblings.length;
+      } else {
+        newParentId = targetTask.parentId;
+        var siblings = newParentId ? TaskManager.getChildren(newParentId) : TaskManager.getRootTasks();
+        var targetIndex = siblings.findIndex(function(t) { return t.id === targetTaskId; });
+        newOrder = position === 'before' ? targetIndex : targetIndex + 1;
+      }
+
+      if (TaskManager.moveTask(this.draggedTaskId, newParentId, newOrder)) {
+        this.render();
+        App.renderAll();
+      }
+    },
+
+    _isValidDrop: function(draggedId, targetId, position) {
+      // Cannot drop on self
+      if (draggedId === targetId) return false;
+
+      // Cannot drop into descendant
+      var descendants = TaskManager.getDescendants(draggedId);
+      for (var i = 0; i < descendants.length; i++) {
+        if (descendants[i].id === targetId) return false;
+      }
+
+      // Calculate new depth
+      var newDepth = 0;
+      if (position === 'child') {
+        newDepth = TaskManager.getDepth(targetId) + 1;
+      } else {
+        var targetTask = TaskManager.getTask(targetId);
+        newDepth = targetTask ? TaskManager.getDepth(targetTask.parentId) + 1 : 0;
+        if (targetTask && targetTask.parentId) {
+          newDepth = TaskManager.getDepth(targetTask.parentId) + 1;
+        } else {
+          newDepth = 0;
+        }
+      }
+
+      // Check if dragged task has descendants that would exceed limit
+      if (descendants.length > 0) {
+        var maxDescendantDepth = 0;
+        for (var i = 0; i < descendants.length; i++) {
+          var d = TaskManager.getDepth(descendants[i].id);
+          if (d > maxDescendantDepth) maxDescendantDepth = d;
+        }
+        var draggedDepth = TaskManager.getDepth(draggedId);
+        var relativeDescendantDepth = maxDescendantDepth - draggedDepth;
+        if (newDepth + relativeDescendantDepth > 2) return false;
+      }
+
+      // Check depth limit for position
+      if (position === 'child') {
+        var targetDepth = TaskManager.getDepth(targetId);
+        if (targetDepth >= 2) return false;
+      }
+
+      return true;
+    },
+
+    _showInsertLine: function(targetEl, position, isValid) {
+      this._removeInsertLine();
+
+      var line = document.createElement('div');
+      line.className = 'tree-insert-line' + (isValid ? '' : ' invalid');
+      line.style.position = 'absolute';
+      line.style.left = '0';
+      line.style.right = '0';
+      line.style.height = '2px';
+      line.style.background = isValid ? '#4a90d9' : '#e74c3c';
+      line.style.zIndex = '100';
+      line.style.pointerEvents = 'none';
+
+      var rect = targetEl.getBoundingClientRect();
+      var containerRect = this.container.getBoundingClientRect();
+
+      if (position === 'before') {
+        line.style.top = (rect.top - containerRect.top) + 'px';
+      } else if (position === 'after') {
+        line.style.top = (rect.bottom - containerRect.top) + 'px';
+      } else {
+        // 'child' - show border around the element
+        line.style.top = (rect.top - containerRect.top) + 'px';
+        line.style.height = rect.height + 'px';
+        line.style.background = 'transparent';
+        line.style.border = '2px dashed ' + (isValid ? '#4a90d9' : '#e74c3c');
+        line.style.boxSizing = 'border-box';
+      }
+
+      this.container.appendChild(line);
+      this._insertLine = line;
+    },
+
+    _removeInsertLine: function() {
+      if (this._insertLine && this._insertLine.parentNode) {
+        this._insertLine.parentNode.removeChild(this._insertLine);
+      }
+      this._insertLine = null;
     }
   };
 
@@ -1503,30 +1819,57 @@
     },
 
     _dateToX: function(dateStr) {
-      var date = _parseDate(dateStr);
-      var totalDays = this._daysBetween(this.startDate, this.endDate);
-      var dayOffset = this._daysBetween(this.startDate, date);
-      var totalWidth = this.cells.length * this.cellWidth;
-      return (dayOffset / totalDays) * totalWidth;
-    },
+      // 统一基准：基于 cells 进行精确比例映射
+      if (this.cells.length === 0) return 0;
+      var targetTime = _parseDate(dateStr).getTime();
 
-    _dateRangeToWidth: function(startStr, endStr) {
-      var x1 = this._dateToX(startStr);
-      var x2 = this._dateToX(endStr);
-      var oneDayWidth = this._dateToX(
-        DataStore.formatDate(new Date(_parseDate(startStr).getTime() + 86400000))
-      ) - this._dateToX(startStr);
-      return Math.max(x2 - x1 + oneDayWidth, 4);
+      for (var i = 0; i < this.cells.length; i++) {
+        var cellStartTime = this.cells[i].start.getTime();
+        // 单元格的结束边界是下一天的凌晨 00:00:00
+        var cellEndTime = this.cells[i].end.getTime() + 86400000;
+
+        if (targetTime >= cellStartTime && targetTime < cellEndTime) {
+          // 精确计算在这个单元格内的百分比进度
+          var ratio = (targetTime - cellStartTime) / (cellEndTime - cellStartTime);
+          return (i + ratio) * this.cellWidth;
+        }
+      }
+
+      // 越界保护（Fallback）：基于第一个或最后一个单元格做线性外推
+      var firstCellTime = this.cells[0].start.getTime();
+      if (targetTime < firstCellTime) {
+        var diff = firstCellTime - targetTime;
+        var duration = this.cells[0].end.getTime() + 86400000 - firstCellTime;
+        return -(diff / duration) * this.cellWidth;
+      } else {
+        var lastCell = this.cells[this.cells.length - 1];
+        var lastCellTime = lastCell.end.getTime() + 86400000;
+        var diff = targetTime - lastCellTime;
+        var duration = lastCellTime - lastCell.start.getTime();
+        return (this.cells.length + (diff / duration)) * this.cellWidth;
+      }
     },
 
     _xToDate: function(x) {
-      var totalWidth = this.cells.length * this.cellWidth;
-      var totalDays = this._daysBetween(this.startDate, this.endDate);
-      // Use floor instead of round to get the correct date at position
-      var dayOffset = Math.floor((x / totalWidth) * totalDays);
-      var date = new Date(this.startDate);
-      date.setDate(date.getDate() + dayOffset);
-      return DataStore.formatDate(date);
+      // 统一基准：基于 cells 进行精确比例映射
+      if (this.cells.length === 0) return DataStore.formatDate(new Date());
+
+      var preciseIndex = x / this.cellWidth;
+      var cellIndex = Math.floor(preciseIndex);
+
+      // 限制索引在有效格子范围内
+      if (cellIndex < 0) cellIndex = 0;
+      if (cellIndex >= this.cells.length) cellIndex = this.cells.length - 1;
+
+      var ratio = Math.max(0, Math.min(1, preciseIndex - cellIndex));
+
+      var cell = this.cells[cellIndex];
+      var cellStartTime = cell.start.getTime();
+      var cellEndTime = cell.end.getTime() + 86400000;
+
+      // 根据比例映射回具体的时间戳
+      var targetTime = cellStartTime + ratio * (cellEndTime - cellStartTime);
+      return DataStore.formatDate(new Date(targetTime));
     },
 
     _daysBetween: function(d1, d2) {
@@ -1544,30 +1887,46 @@
     },
 
     _buildRows: function(leafTasks) {
+      // Build rows based on tree order (DFS traversal)
+      // Each leaf task gets its own row
       var rows = [];
-      var rowMap = {};
       leafTasks.forEach(function(task) {
-        if (task.ganttRow !== null && task.ganttRow !== undefined && rowMap[task.ganttRow] !== undefined) {
-          rows[rowMap[task.ganttRow]].push(task);
-        } else {
-          var rowIndex = rows.length;
-          rows.push([task]);
-          if (task.ganttRow !== null && task.ganttRow !== undefined) {
-            rowMap[task.ganttRow] = rowIndex;
-          }
-        }
+        rows.push([task]);
       });
       return rows;
+    },
+
+    _getLeafTasksInTreeOrder: function() {
+      // Get leaf tasks in DFS tree order
+      var result = [];
+      var self = this;
+
+      function traverse(taskId) {
+        var children = TaskManager.getChildren(taskId);
+        if (children.length === 0) {
+          var task = TaskManager.getTask(taskId);
+          if (task) result.push(task);
+        } else {
+          children.forEach(function(child) {
+            traverse(child.id);
+          });
+        }
+      }
+
+      var roots = TaskManager.getRootTasks();
+      roots.forEach(function(root) {
+        traverse(root.id);
+      });
+
+      return result;
     },
 
     render: function() {
       this._calcDateRange();
       this._generateCells();
 
-      var allTasks = TaskManager.getAllTasks();
-      var leafTasks = allTasks.filter(function(t) {
-        return TaskManager.getChildren(t.id).length === 0;
-      });
+      // Get leaf tasks in tree order (DFS traversal)
+      var leafTasks = this._getLeafTasksInTreeOrder();
 
       if (leafTasks.length === 0) {
         this.container.innerHTML = '<div class="gantt-empty">暂无任务，请先创建任务</div>';
@@ -1578,14 +1937,15 @@
       var today = DataStore.formatDate(new Date());
       var self = this;
 
-      var headerHtml = '<div class="gantt-header" style="width:' + totalWidth + 'px;">';
+      // header 需要一个外层包装容器来控制 overflow
+      var headerHtml = '<div class="gantt-header-wrapper"><div class="gantt-header" style="width:' + totalWidth + 'px;">';
       this.cells.forEach(function(cell) {
         var cls = 'gantt-header-cell';
         if (cell.isWeekend) cls += ' weekend';
         var weekdayHtml = cell.weekday ? '<div class="weekday">' + cell.weekday + '</div>' : '';
         headerHtml += '<div class="' + cls + '" style="width:' + self.cellWidth + 'px;">' + weekdayHtml + '<div>' + cell.label + '</div></div>';
       });
-      headerHtml += '</div>';
+      headerHtml += '</div></div>';
 
       var rows = this._buildRows(leafTasks);
       var bodyHtml = '<div class="gantt-body"><div style="position:relative;width:' + totalWidth + 'px;min-height:' + (rows.length * 36) + 'px;">';
@@ -1608,17 +1968,30 @@
           if (!range.startDate || !range.endDate) return;
 
           var color = TaskManager.getEffectiveColor(task);
+
+          // 精确左边缘（统一基准法）
           var barX = self._dateToX(range.startDate);
-          var barW = self._dateRangeToWidth(range.startDate, range.endDate);
+          // endDate 是包含当天的，为了拿到右边缘坐标，计算 endDate + 1 天的坐标
+          var nextDayTime = _parseDate(range.endDate).getTime() + 86400000;
+          var endX = self._dateToX(DataStore.formatDate(new Date(nextDayTime)));
+          // 最小宽度限制为 20px 保证可视性
+          var barW = Math.max(endX - barX, 20);
+
           var statusCls = task.status === 'done' ? ' status-done' : '';
           var selectedCls = (TreeView.selectedTaskId === task.id) ? ' selected' : '';
           var assigneeText = task.assignee ? ' [' + _escapeHtml(task.assignee) + ']' : '';
 
-          bodyHtml += '<div class="gantt-bar' + statusCls + selectedCls + '" style="left:' + barX + 'px;width:' + barW + 'px;top:' + (rowIndex * 36 + 8) + 'px;background:' + color + ';" data-task-id="' + task.id + '" title="' + _escapeHtml(task.name) + assigneeText + ' (' + range.startDate + ' ~ ' + range.endDate + ')">' + _escapeHtml(task.name) + '</div>';
+          // 格式化短日期（MM-DD）用于任务条显示
+          var shortStartDate = range.startDate.slice(5);  // 去掉年份
+          var shortEndDate = range.endDate.slice(5);
+          var barLabel = _escapeHtml(task.name) + ' <span class="gantt-bar-dates">(' + shortStartDate + ' ~ ' + shortEndDate + ')</span>';
+
+          bodyHtml += '<div class="gantt-bar' + statusCls + selectedCls + '" style="left:' + barX + 'px;width:' + barW + 'px;top:' + (rowIndex * 36 + 8) + 'px;background:' + color + ';" data-task-id="' + task.id + '" title="' + _escapeHtml(task.name) + assigneeText + ' (' + range.startDate + ' ~ ' + range.endDate + ')">' + barLabel + '</div>';
 
           var milestones = TaskManager.getMilestonesByTask(task.id);
           milestones.forEach(function(ms) {
-            var msX = self._dateToX(ms.date);
+            // 里程碑放在单元格中间位置
+            var msX = self._dateToX(ms.date) + self.cellWidth / 2;
             bodyHtml += '<div class="gantt-milestone" style="left:' + msX + 'px;top:' + (rowIndex * 36 + 4) + 'px;" data-milestone-id="' + ms.id + '" data-task-id="' + task.id + '" title="' + _escapeHtml(ms.name) + ' (' + ms.date + ')">' + ms.icon + '</div>';
           });
         });
@@ -1628,11 +2001,88 @@
 
       this.container.innerHTML = '<div class="gantt-container">' + headerHtml + bodyHtml + '</div>';
       this._bindBarEvents();
+      this._setupScrollSync();
+      this._setupColumnHighlight();
 
       var ganttBody = this.container.querySelector('.gantt-body');
       if (ganttBody && todayX > 0) {
         ganttBody.scrollLeft = Math.max(0, todayX - ganttBody.clientWidth / 2);
+        // 初始同步（scroll 事件会自动触发 _scrollSyncHandler）
       }
+    },
+
+    _setupScrollSync: function() {
+      var ganttBody = this.container.querySelector('.gantt-body');
+      var ganttHeader = this.container.querySelector('.gantt-header');
+      if (!ganttBody || !ganttHeader) return;
+
+      // Remove existing listener if any
+      if (this._scrollSyncHandler) {
+        ganttBody.removeEventListener('scroll', this._scrollSyncHandler);
+      }
+
+      this._scrollSyncHandler = function() {
+        // 使用 transform 移动 header 内容，因为 header 有 overflow:hidden 且 width=totalWidth
+        ganttHeader.style.transform = 'translateX(' + (-ganttBody.scrollLeft) + 'px)';
+      };
+      ganttBody.addEventListener('scroll', this._scrollSyncHandler);
+    },
+
+    _setupColumnHighlight: function() {
+      var self = this;
+      var ganttBody = this.container.querySelector('.gantt-body');
+      var ganttHeader = this.container.querySelector('.gantt-header');
+      if (!ganttBody || !ganttHeader) return;
+
+      // Remove existing highlights and listeners
+      var existingHighlight = ganttBody.querySelector('.gantt-column-highlight');
+      if (existingHighlight) existingHighlight.remove();
+      var existingHeaderHighlight = ganttHeader.querySelector('.gantt-header-highlight');
+      if (existingHeaderHighlight) existingHeaderHighlight.remove();
+
+      if (this._columnHighlightHandlers) {
+        ganttBody.removeEventListener('mousemove', this._columnHighlightHandlers.mousemove);
+        ganttBody.removeEventListener('mouseleave', this._columnHighlightHandlers.mouseleave);
+      }
+
+      // Create column highlight overlay
+      var highlightCol = document.createElement('div');
+      highlightCol.className = 'gantt-column-highlight';
+      highlightCol.style.cssText = 'position:absolute;top:0;bottom:0;width:' + this.cellWidth + 'px;background:rgba(74,144,217,0.08);pointer-events:none;display:none;z-index:1;';
+      ganttBody.appendChild(highlightCol);
+
+      // Create header column highlight
+      var headerHighlight = document.createElement('div');
+      headerHighlight.className = 'gantt-header-highlight';
+      headerHighlight.style.cssText = 'position:absolute;top:0;bottom:0;width:' + this.cellWidth + 'px;background:rgba(74,144,217,0.12);pointer-events:none;display:none;z-index:1;';
+      ganttHeader.style.position = 'relative';
+      ganttHeader.appendChild(headerHighlight);
+
+      var mousemoveHandler = function(e) {
+        var rect = ganttBody.getBoundingClientRect();
+        var x = e.clientX - rect.left + ganttBody.scrollLeft;
+        var colIndex = Math.floor(x / self.cellWidth);
+
+        highlightCol.style.left = (colIndex * self.cellWidth) + 'px';
+        highlightCol.style.display = 'block';
+
+        headerHighlight.style.left = (colIndex * self.cellWidth) + 'px';
+        headerHighlight.style.display = 'block';
+      };
+
+      var mouseleaveHandler = function() {
+        highlightCol.style.display = 'none';
+        headerHighlight.style.display = 'none';
+      };
+
+      ganttBody.addEventListener('mousemove', mousemoveHandler);
+      ganttBody.addEventListener('mouseleave', mouseleaveHandler);
+
+      // Store handlers for cleanup
+      this._columnHighlightHandlers = {
+        mousemove: mousemoveHandler,
+        mouseleave: mouseleaveHandler
+      };
     },
 
     _bindBarEvents: function() {
@@ -1651,12 +2101,7 @@
           }
         });
         el.addEventListener('dblclick', function(e) {
-          var taskId = el.dataset.taskId;
-          var rect = el.getBoundingClientRect();
-          var clickX = e.clientX - rect.left;
-          var barStartX = parseFloat(el.style.left);
-          var dateAtClick = self._xToDate(barStartX + clickX);
-          App.showAddMilestoneAtDate(taskId, dateAtClick);
+          App.showEditTask(el.dataset.taskId);
         });
         el.addEventListener('contextmenu', function(e) {
           e.preventDefault();
@@ -1925,10 +2370,9 @@
 
       var deltaX = e.clientX - this.startX;
       var deltaY = e.clientY - this.startY;
-      var daysDelta = Math.round(deltaX / GanttView.cellWidth * this._daysPerCell());
 
-      // Convert days delta to pixel delta for ghost sizing (syncs ghost with tooltip date)
-      var pixelDelta = daysDelta * GanttView.cellWidth / this._daysPerCell();
+      // Calculate pixel delta directly (ghost follows mouse precisely)
+      var pixelDelta = deltaX;
 
       // Update ghost position/width
       if (this._ghost) {
@@ -1940,7 +2384,7 @@
           this._ghost.style.left = (e.clientX - this._ghostOffsetX) + 'px';
           this._ghost.style.top = (e.clientY - this._ghostOffsetY) + 'px';
         } else if (this.dragType === 'resize-left') {
-          // Resize left: keep right edge fixed, adjust left and width
+          // Resize left: left edge follows mouse, right edge stays fixed
           var newWidth = this._ghostOriginalWidth - pixelDelta;
           if (newWidth >= 20) {
             this._ghost.style.left = (this._ghostFixedLeft + pixelDelta) + 'px';
@@ -1952,7 +2396,7 @@
             this._ghostValid = false;
           }
         } else if (this.dragType === 'resize-right') {
-          // Resize right: keep left edge fixed, adjust width
+          // Resize right: right edge follows mouse, left edge stays fixed
           var newWidth = this._ghostOriginalWidth + pixelDelta;
           if (newWidth >= 20) {
             this._ghost.style.width = newWidth + 'px';
@@ -1965,8 +2409,10 @@
         }
       }
 
-      // Helper to convert ghost fixed position to gantt body relative position
+      // ===== 统一基准法：直接根据绝对坐标反推日期 =====
       var self = this;
+
+      // 辅助函数：ghost屏幕坐标转gantt内部坐标（仅用于snap line）
       var ghostToGanttX = function(ghostX) {
         var ganttBody = document.querySelector('.gantt-body');
         if (!ganttBody) return 0;
@@ -1974,13 +2420,16 @@
         return ghostX - ganttRect.left + ganttBody.scrollLeft;
       };
 
-      // Helper to calculate date from ghost right edge (for resize-right)
-      var ghostRightToDate = function() {
-        if (!self._ghost) return null;
-        var ghostRight = parseFloat(self._ghost.style.left) + parseFloat(self._ghost.style.width);
-        var ganttX = ghostToGanttX(ghostRight);
-        // Use GanttView's _xToDate for consistent calculation
-        return GanttView._xToDate(ganttX);
+      // 辅助函数：日期加一天
+      var addOneDay = function(dateStr) {
+        var t = _parseDate(dateStr).getTime() + 86400000;
+        return DataStore.formatDate(new Date(t));
+      };
+
+      // 辅助函数：日期减一天
+      var subOneDay = function(dateStr) {
+        var t = _parseDate(dateStr).getTime() - 86400000;
+        return DataStore.formatDate(new Date(t));
       };
 
       if (this.dragType === 'move') {
@@ -1999,51 +2448,74 @@
           if (targetRow) {
             targetRow.style.background = 'rgba(74, 144, 217, 0.1)';
           }
-          this.tooltip.textContent = '移动到行 ' + (targetRowIndex + 1);
+          this.tooltip.textContent = '排序到第 ' + (targetRowIndex + 1) + ' 行';
         } else {
           this._rowMergeMode = false;
           // Clear row highlights
           document.querySelectorAll('.gantt-row').forEach(function(row) {
             row.style.background = '';
           });
-          var newStart = this._addDays(this.originalStartDate, daysDelta);
-          var newEnd = this._addDays(this.originalEndDate, daysDelta);
+
+          // 核心变化：基于原绝对坐标 + 偏移量计算新日期
+          var originalStartX = GanttView._dateToX(this.originalStartDate);
+          var originalEndX = GanttView._dateToX(addOneDay(this.originalEndDate));
+
+          var newStart = GanttView._xToDate(originalStartX + deltaX);
+          var newEndNextDay = GanttView._xToDate(originalEndX + deltaX);
+          var newEnd = subOneDay(newEndNextDay); // 把专属排他边界转回包含边界
+
           this.tooltip.textContent = newStart + ' ~ ' + newEnd;
           this.dragTarget._tempStart = newStart;
           this.dragTarget._tempEnd = newEnd;
 
           // Update snap line based on ghost position
-          var ghostLeft = parseFloat(this._ghost.style.left);
-          this._updateSnapLine(ghostToGanttX(ghostLeft));
+          if (this._ghostValid !== false) {
+            var ghostLeft = parseFloat(this._ghost.style.left);
+            this._updateSnapLine(ghostToGanttX(ghostLeft));
+          }
         }
       } else if (this.dragType === 'resize-left') {
-        var newStart = this._addDays(this.originalStartDate, daysDelta);
-        if (newStart >= this.originalEndDate) return;
-        this.tooltip.textContent = '开始: ' + this.originalStartDate + ' → ' + newStart;
-        this.dragTarget._tempStart = newStart;
-        // Snap line at ghost left edge (only if ghost was updated)
+        var originalStartX = GanttView._dateToX(this.originalStartDate);
+        var displayStart = GanttView._xToDate(originalStartX + deltaX);
+
+        // 不允许开始日期 >= 结束日期
+        if (displayStart >= this.originalEndDate) {
+          displayStart = subOneDay(this.originalEndDate);
+        }
+        this.tooltip.textContent = '开始: ' + this.originalStartDate + ' → ' + displayStart;
+        this.dragTarget._tempStart = displayStart;
+
+        // Snap line at ghost left edge
         if (this._ghostValid) {
           var ghostLeft = parseFloat(this._ghost.style.left);
           this._updateSnapLine(ghostToGanttX(ghostLeft));
         }
       } else if (this.dragType === 'resize-right') {
-        var newEnd = this._addDays(this.originalEndDate, daysDelta);
-        if (newEnd <= this.originalStartDate) return;
-        // Use ghost position to calculate displayed date (syncs with snap line)
-        var displayEnd = this._ghostValid ? ghostRightToDate() : newEnd;
-        if (!displayEnd) displayEnd = newEnd;
+        var originalEndX = GanttView._dateToX(addOneDay(this.originalEndDate));
+        var newEndNextDay = GanttView._xToDate(originalEndX + deltaX);
+        var displayEnd = subOneDay(newEndNextDay);
+
+        // 不允许结束日期 <= 开始日期
+        if (displayEnd <= this.originalStartDate) {
+          displayEnd = addOneDay(this.originalStartDate);
+        }
         this.tooltip.textContent = '结束: ' + this.originalEndDate + ' → ' + displayEnd;
         this.dragTarget._tempEnd = displayEnd;
-        // Snap line at ghost right edge (only if ghost was updated)
+
+        // Snap line at ghost right edge
         if (this._ghostValid) {
           var ghostRight = parseFloat(this._ghost.style.left) + parseFloat(this._ghost.style.width);
           this._updateSnapLine(ghostToGanttX(ghostRight));
         }
       } else if (this.dragType === 'milestone') {
-        var newDate = this._addDays(this.originalDate, daysDelta);
+        // 里程碑拖拽：直接用 deltaX 计算新日期
+        var originalX = GanttView._dateToX(this.originalDate);
+        var newDate = GanttView._xToDate(originalX + deltaX);
+
         this.tooltip.textContent = newDate;
         this.dragTarget._tempDate = newDate;
-        // Snap line at ghost center (milestone is 20px wide)
+
+        // Snap line at ghost center (milestone is 20px wide, centered)
         var ghostCenter = parseFloat(this._ghost.style.left) + 10;
         this._updateSnapLine(ghostToGanttX(ghostCenter));
       }
@@ -2070,8 +2542,8 @@
 
       if (this.dragType === 'move') {
         if (this._rowMergeMode && this._targetRowIndex >= 0) {
-          // Row merge logic
-          this._handleRowMerge(target, this._targetRowIndex);
+          // Row reorder logic
+          this._handleRowReorder(target, this._targetRowIndex);
         } else if (target._tempStart && target._tempEnd) {
           TaskManager.updateTask(target.id, { startDate: target._tempStart, endDate: target._tempEnd });
         }
@@ -2157,71 +2629,58 @@
       document.body.style.cursor = '';
     },
 
-    _handleRowMerge: function(task, targetRowIndex) {
-      // Build current row layout to find what's at the target row
-      var allTasks = TaskManager.getAllTasks();
-      var leafTasks = allTasks.filter(function(t) {
-        return TaskManager.getChildren(t.id).length === 0;
-      });
-      var rows = GanttView._buildRows(leafTasks);
+    _handleRowReorder: function(task, targetRowIndex) {
+      // Get leaf tasks in tree order
+      var leafTasks = GanttView._getLeafTasksInTreeOrder();
 
       // Find current row of dragged task
       var currentRowIndex = -1;
-      for (var i = 0; i < rows.length; i++) {
-        for (var j = 0; j < rows[i].length; j++) {
-          if (rows[i][j].id === task.id) {
-            currentRowIndex = i;
-            break;
-          }
+      for (var i = 0; i < leafTasks.length; i++) {
+        if (leafTasks[i].id === task.id) {
+          currentRowIndex = i;
+          break;
         }
-        if (currentRowIndex >= 0) break;
       }
 
-      if (currentRowIndex === targetRowIndex || targetRowIndex >= rows.length) {
-        // Same row or out of bounds — no-op
-        return;
-      }
+      if (currentRowIndex < 0 || targetRowIndex >= leafTasks.length) return;
+      if (currentRowIndex === targetRowIndex) return;
 
-      var targetRow = rows[targetRowIndex];
-      if (!targetRow || targetRow.length === 0) return;
+      // Get target task
+      var targetTask = leafTasks[targetRowIndex];
+      if (!targetTask) return;
 
-      // Check time overlap with all tasks in target row
-      var taskRange = TaskManager.getDateRange(task);
-      if (!taskRange.startDate || !taskRange.endDate) return;
+      // Determine if moving before or after
+      var isMovingDown = targetRowIndex > currentRowIndex;
 
-      var hasOverlap = false;
-      targetRow.forEach(function(other) {
-        if (other.id === task.id) return;
-        var otherRange = TaskManager.getDateRange(other);
-        if (!otherRange.startDate || !otherRange.endDate) return;
-        if (taskRange.startDate <= otherRange.endDate && taskRange.endDate >= otherRange.startDate) {
-          hasOverlap = true;
+      // Calculate new parent and order
+      // We'll move the task to be a sibling of the target task
+      var newParentId = targetTask.parentId;
+      var siblings = newParentId ? TaskManager.getChildren(newParentId) : TaskManager.getRootTasks();
+
+      // Find target's index among siblings
+      var targetSiblingIndex = -1;
+      for (var i = 0; i < siblings.length; i++) {
+        if (siblings[i].id === targetTask.id) {
+          targetSiblingIndex = i;
+          break;
         }
-      });
-
-      if (hasOverlap) {
-        // Time overlap — cannot merge, bounce back
-        this.tooltip.textContent = '时间重叠，无法合并';
-        return;
       }
 
-      // Merge: assign same ganttRow value as the target row's first task
-      var targetGanttRow = targetRow[0].ganttRow;
-      if (targetGanttRow === null || targetGanttRow === undefined) {
-        // Target row doesn't have a ganttRow yet — assign a new value
-        targetGanttRow = Date.now();
-        targetRow.forEach(function(t) {
-          TaskManager.updateTask(t.id, { ganttRow: targetGanttRow });
-        });
-      }
+      if (targetSiblingIndex < 0) return;
 
-      // If dragged task was sharing a row and is the only one left, clear its old row's ganttRow
-      if (rows[currentRowIndex].length === 1) {
-        // Only task in its row — just set its ganttRow to merge
-        TaskManager.updateTask(task.id, { ganttRow: targetGanttRow });
+      // Calculate new order
+      var newOrder;
+      if (isMovingDown) {
+        // Moving down: insert after target
+        newOrder = targetSiblingIndex + 1;
       } else {
-        // Was sharing a row — detach from old row and join new one
-        TaskManager.updateTask(task.id, { ganttRow: targetGanttRow });
+        // Moving up: insert before target
+        newOrder = targetSiblingIndex;
+      }
+
+      // Use moveTask to reorder
+      if (TaskManager.moveTask(task.id, newParentId, newOrder)) {
+        // Success - renderAll will be called by _onMouseUp
       }
     },
 
@@ -2416,6 +2875,7 @@
       GanttView.init(document.getElementById('content-area'));
       CalendarView.init(document.getElementById('content-area'));
       DragManager.init();
+      this._setupSidebarResize();
 
       this.currentView = TaskManager.getSetting('lastView') || 'gantt';
       var granularity = TaskManager.getSetting('lastGranularity') || 'month';
@@ -2425,6 +2885,50 @@
       this._updateViewButtons();
       this._updateGranularityButtons();
       this.renderAll();
+    },
+
+    _setupSidebarResize: function() {
+      var sidebar = document.getElementById('sidebar');
+      var handle = document.getElementById('sidebar-resize-handle');
+      if (!sidebar || !handle) return;
+
+      var isResizing = false;
+      var startX = 0;
+      var startWidth = 0;
+
+      handle.addEventListener('mousedown', function(e) {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = sidebar.offsetWidth;
+        handle.classList.add('dragging');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', function(e) {
+        if (!isResizing) return;
+        var diff = e.clientX - startX;
+        var newWidth = startWidth + diff;
+        var minWidth = 180;
+        var maxWidth = 500;
+        // Clamp value for smooth dragging at boundaries
+        var clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+        sidebar.style.width = clampedWidth + 'px';
+      });
+
+      var stopResize = function() {
+        if (isResizing) {
+          isResizing = false;
+          handle.classList.remove('dragging');
+          document.body.style.cursor = '';
+          document.body.style.userSelect = '';
+        }
+      };
+
+      document.addEventListener('mouseup', stopResize);
+      // Fallback for edge cases where mouseup doesn't fire
+      document.body.addEventListener('mouseleave', stopResize);
     },
 
     renderAll: function() {
@@ -2442,6 +2946,7 @@
 
       document.getElementById('btn-import').addEventListener('click', function() { self.importData(); });
       document.getElementById('btn-export').addEventListener('click', function() { self.exportData(); });
+      document.getElementById('btn-export-excel').addEventListener('click', function() { self.exportToExcel(); });
       document.getElementById('btn-view-gantt').addEventListener('click', function() { self.switchView('gantt'); });
       document.getElementById('btn-view-calendar').addEventListener('click', function() { self.switchView('calendar'); });
       document.getElementById('btn-granularity-year').addEventListener('click', function() { self.switchGranularity('year'); });
@@ -2632,6 +3137,157 @@
         });
       });
       input.click();
+    },
+
+    // -- Export to Excel --
+    exportToExcel: function() {
+      if (typeof XLSX === 'undefined') {
+        alert('Excel 库未加载，请确保 xlsx.full.min.js 文件与 index.html 在同一目录下，并刷新页面重试。');
+        console.log('XLSX status:', typeof XLSX);
+        return;
+      }
+
+      var wb = XLSX.utils.book_new();
+      var tasks = TaskManager.getAllTasks();
+      var milestones = TaskManager.getAllMilestones();
+
+      // ========== Sheet 1: 任务列表 ==========
+      var taskHeaders = ['层级', '任务名称', '开始日期', '结束日期', '负责人', '状态', '颜色'];
+      var taskData = [taskHeaders];
+
+      // 递归生成任务列表（保持层级结构）
+      function addTaskRow(task, depth) {
+        var indent = '';
+        for (var i = 1; i < depth; i++) indent += '　';
+        if (depth > 1) indent += '├ ';
+
+        var statusMap = { 'todo': '待办', 'in_progress': '进行中', 'done': '已完成' };
+        var range = TaskManager.getDateRange(task);
+
+        taskData.push([
+          depth,
+          indent + task.name,
+          range.startDate || '',
+          range.endDate || '',
+          task.assignee || '',
+          statusMap[task.status] || task.status,
+          task.color || ''
+        ]);
+
+        var children = TaskManager.getChildren(task.id);
+        children.forEach(function(child) {
+          addTaskRow(child, depth + 1);
+        });
+      }
+
+      var rootTasks = TaskManager.getRootTasks();
+      rootTasks.forEach(function(task) {
+        addTaskRow(task, 1);
+      });
+
+      var ws1 = XLSX.utils.aoa_to_sheet(taskData);
+      ws1['!cols'] = [
+        { wch: 6 },   // 层级
+        { wch: 30 },  // 任务名称
+        { wch: 12 },  // 开始日期
+        { wch: 12 },  // 结束日期
+        { wch: 10 },  // 负责人
+        { wch: 8 },   // 状态
+        { wch: 8 }    // 颜色
+      ];
+      XLSX.utils.book_append_sheet(wb, ws1, '任务列表');
+
+      // ========== Sheet 2: 里程碑 ==========
+      var msHeaders = ['任务名称', '里程碑名称', '日期', '图标'];
+      var msData = [msHeaders];
+
+      milestones.forEach(function(ms) {
+        var task = TaskManager.getTask(ms.taskId);
+        msData.push([
+          task ? task.name : '',
+          ms.name,
+          ms.date,
+          ms.icon
+        ]);
+      });
+
+      var ws2 = XLSX.utils.aoa_to_sheet(msData);
+      ws2['!cols'] = [
+        { wch: 25 },  // 任务名称
+        { wch: 20 },  // 里程碑名称
+        { wch: 12 },  // 日期
+        { wch: 6 }    // 图标
+      ];
+      XLSX.utils.book_append_sheet(wb, ws2, '里程碑');
+
+      // ========== Sheet 3: 甘特图视图 ==========
+      // 计算日期范围
+      var allDates = [];
+      tasks.forEach(function(t) {
+        var range = TaskManager.getDateRange(t);
+        if (range.startDate) allDates.push(range.startDate);
+        if (range.endDate) allDates.push(range.endDate);
+      });
+
+      if (allDates.length === 0) {
+        alert('没有任务数据可导出');
+        return;
+      }
+
+      allDates.sort();
+      var minDate = allDates[0];
+      var maxDate = allDates[allDates.length - 1];
+
+      // 生成日期列表
+      var dateList = [];
+      var d = new Date(minDate);
+      var endDateObj = new Date(maxDate);
+      while (d <= endDateObj) {
+        dateList.push(DataStore.formatDate(new Date(d)));
+        d.setDate(d.getDate() + 1);
+      }
+
+      // 构建甘特图数据
+      var ganttHeaders = ['任务名称'].concat(dateList.map(function(dt) {
+        return dt.slice(5); // MM-DD 格式
+      }));
+      var ganttData = [ganttHeaders];
+
+      // 只导出叶子任务
+      var leafTasks = tasks.filter(function(t) {
+        return TaskManager.getChildren(t.id).length === 0;
+      });
+
+      leafTasks.forEach(function(task) {
+        var range = TaskManager.getDateRange(task);
+        var row = [task.name];
+        var color = TaskManager.getEffectiveColor(task);
+
+        dateList.forEach(function(dt) {
+          if (range.startDate && range.endDate && dt >= range.startDate && dt <= range.endDate) {
+            row.push('■'); // 使用方块符号表示
+          } else {
+            row.push('');
+          }
+        });
+
+        ganttData.push(row);
+      });
+
+      var ws3 = XLSX.utils.aoa_to_sheet(ganttData);
+
+      // 设置列宽
+      var ganttCols = [{ wch: 25 }]; // 任务名称列
+      dateList.forEach(function() {
+        ganttCols.push({ wch: 4 }); // 日期列
+      });
+      ws3['!cols'] = ganttCols;
+
+      XLSX.utils.book_append_sheet(wb, ws3, '甘特图');
+
+      // 导出文件
+      var filename = 'PMWEB_' + DataStore.formatDate(new Date()) + '.xlsx';
+      XLSX.writeFile(wb, filename);
     }
   };
 
@@ -2642,6 +3298,10 @@
     App.init();
   });
   </script>
+
+  <!-- SheetJS for Excel export (内网环境请下载此文件到本地) -->
+  <!-- 下载地址: https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js -->
+  <script src="xlsx.full.min.js"></script>
 
   <div class="context-menu" id="context-menu"></div>
 
