@@ -1923,6 +1923,10 @@
     },
 
     render: function() {
+      // 保存当前滚动位置（如果是重新渲染）
+      var prevGanttBody = this.container.querySelector('.gantt-body');
+      var savedScrollLeft = prevGanttBody ? prevGanttBody.scrollLeft : null;
+
       this._calcDateRange();
       this._generateCells();
 
@@ -2006,9 +2010,14 @@
       this._setupColumnHighlight();
 
       var ganttBody = this.container.querySelector('.gantt-body');
-      if (ganttBody && todayX > 0) {
-        ganttBody.scrollLeft = Math.max(0, todayX - ganttBody.clientWidth / 2);
-        // 初始同步（scroll 事件会自动触发 _scrollSyncHandler）
+      if (ganttBody) {
+        if (savedScrollLeft !== null) {
+          // 恢复之前的滚动位置
+          ganttBody.scrollLeft = savedScrollLeft;
+        } else if (todayX > 0) {
+          // 仅在初始渲染时滚动到今天
+          ganttBody.scrollLeft = Math.max(0, todayX - ganttBody.clientWidth / 2);
+        }
       }
     },
 
@@ -2156,7 +2165,7 @@
         var el = this.container.querySelector('.gantt-bar[data-task-id="' + taskId + '"]');
         if (el) {
           el.classList.add('selected');
-          el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+          // 不做水平滚动，避免跳转
         }
       }
     }
