@@ -187,6 +187,77 @@
       background: var(--color-bg);
     }
 
+    /* ===== TODOS SIDEBAR ===== */
+    #todos-sidebar {
+      width: 220px;
+      background: var(--color-surface);
+      border-left: 1px solid var(--color-border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    #todos-sidebar-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--color-border);
+      background: var(--color-header);
+    }
+    #todos-sidebar-header h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+    #todos-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    .todo-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 8px;
+      margin-bottom: 4px;
+      background: var(--color-bg);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .todo-item:hover {
+      background: var(--color-hover);
+    }
+    .todo-item.done {
+      opacity: 0.6;
+    }
+    .todo-icon {
+      font-size: 14px;
+      margin-right: 8px;
+      flex-shrink: 0;
+      color: #E74C3C;
+    }
+    .todo-item.done .todo-icon {
+      color: #27ae60;
+    }
+    .todo-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .todo-name {
+      font-size: 13px;
+      color: var(--color-text);
+      word-break: break-word;
+    }
+    .todo-task {
+      font-size: 11px;
+      color: var(--color-text-secondary);
+      margin-top: 2px;
+    }
+    .todos-empty {
+      padding: 20px;
+      text-align: center;
+      color: var(--color-text-secondary);
+      font-size: 13px;
+    }
+
     #content-placeholder {
       display: flex;
       align-items: center;
@@ -476,7 +547,8 @@
       transform: translateY(-1px);
       box-shadow: 0 2px 8px rgba(0,0,0,0.18);
     }
-    .gantt-bar.status-done { opacity: 0.6; }
+    .gantt-bar.status-done { opacity: 0.5; filter: grayscale(0.5); }
+    .gantt-bar.status-thirdParty { opacity: 0.7; }
     .gantt-bar.highlight {
       filter: brightness(1.2);
       box-shadow: 0 0 8px rgba(74, 144, 217, 0.6);
@@ -517,6 +589,7 @@
       pointer-events: none;
     }
     .gantt-milestone:hover { transform: translateX(-10px) scale(1.2); }
+    .gantt-milestone.done { color: #27ae60; }
     .gantt-drag-tooltip {
       position: fixed;
       background: rgba(0,0,0,0.8);
@@ -667,6 +740,7 @@
       font-weight: 600;
     }
     .calendar-milestone-item:hover { text-decoration: underline; }
+    .calendar-milestone-item.done { color: #27ae60; }
     .calendar-task-bar.highlight {
       filter: brightness(1.3);
       box-shadow: 0 0 4px rgba(74, 144, 217, 0.5);
@@ -718,6 +792,14 @@
     <!-- CONTENT AREA -->
     <div id="content-area">
       <div id="content-placeholder">请选择或新建项目</div>
+    </div>
+
+    <!-- TODOS SIDEBAR -->
+    <div id="todos-sidebar">
+      <div id="todos-sidebar-header">
+        <h3>今日待办</h3>
+      </div>
+      <div id="todos-list"></div>
     </div>
 
   </div>
@@ -835,7 +917,7 @@
         v2.tasks.push({
           id: newId, parentId: null, name: p.name, description: '', assignee: '',
           color: p.color || '#4a90d9', startDate: null, endDate: null,
-          status: 'todo', order: i, ganttRow: null
+          status: 'inProgress', order: i, ganttRow: null
         });
       });
       var oldTasks = v1.tasks || [];
@@ -856,7 +938,7 @@
         }
         if (taskId) {
           v2.milestones.push({
-            id: m.id, taskId: taskId, name: m.name, date: m.date, icon: m.icon || '◆'
+            id: m.id, taskId: taskId, name: m.name, date: m.date, status: 'pending'
           });
         }
       });
@@ -886,6 +968,27 @@
 
     init: function() {
       this.data = DataStore.load();
+      this._migrateStatuses();
+    },
+
+    _migrateStatuses: function() {
+      // 迁移旧状态到新状态: todo → inProgress, inProgress → thirdParty
+      var needsSave = false;
+      this.data.tasks.forEach(function(t) {
+        if (t.status === 'todo') {
+          t.status = 'inProgress';
+          needsSave = true;
+        }
+      });
+      // 迁移里程碑：icon → status (所有旧里程碑默认为待办)
+      this.data.milestones.forEach(function(m) {
+        if (m.icon && !m.status) {
+          m.status = 'pending';
+          delete m.icon;
+          needsSave = true;
+        }
+      });
+      if (needsSave) this._save();
     },
 
     _save: function() {
@@ -984,7 +1087,7 @@
       var task = {
         id: DataStore.uuid(), parentId: parentId, name: name.trim(),
         description: '', assignee: '', color: color,
-        startDate: today, endDate: weekLater, status: 'todo',
+        startDate: today, endDate: weekLater, status: 'inProgress',
         order: siblings.length, ganttRow: null
       };
       this.data.tasks.push(task);
@@ -1111,7 +1214,7 @@
       return this.data.milestones.slice();
     },
 
-    addMilestone: function(taskId, name, date, icon) {
+    addMilestone: function(taskId, name, date, status) {
       var task = this.getTask(taskId);
       if (task) {
         var range = this.getDateRange(task);
@@ -1123,7 +1226,7 @@
         }
       }
       var milestone = {
-        id: DataStore.uuid(), taskId: taskId, name: name.trim(), date: date, icon: icon || '◆'
+        id: DataStore.uuid(), taskId: taskId, name: name.trim(), date: date, status: status || 'pending'
       };
       this.data.milestones.push(milestone);
       this._save();
@@ -1135,7 +1238,7 @@
       if (!milestone) return null;
       if (updates.name !== undefined) milestone.name = updates.name.trim();
       if (updates.date !== undefined) milestone.date = updates.date;
-      if (updates.icon !== undefined) milestone.icon = updates.icon;
+      if (updates.status !== undefined) milestone.status = updates.status;
       this._save();
       return milestone;
     },
@@ -1224,8 +1327,8 @@
         + '<input type="date" id="modal-task-end" value="' + endDate + '"></div>'
         + '<div class="modal-field"><label>状态</label>'
         + '<select id="modal-task-status">'
-        + '<option value="todo"' + (status === 'todo' ? ' selected' : '') + '>待办</option>'
-        + '<option value="inProgress"' + (status === 'inProgress' ? ' selected' : '') + '>进行中</option>'
+        + '<option value="inProgress"' + (status === 'inProgress' ? ' selected' : '') + '>正在进行</option>'
+        + '<option value="thirdParty"' + (status === 'thirdParty' ? ' selected' : '') + '>第三方跟进</option>'
         + '<option value="done"' + (status === 'done' ? ' selected' : '') + '>已完成</option>'
         + '</select></div>'
         + '<div class="modal-actions">'
@@ -1255,7 +1358,7 @@
       var title = isEdit ? '编辑里程碑' : '新建里程碑';
       var name = isEdit ? milestone.name : '';
       var date = isEdit ? milestone.date : DataStore.formatDate(new Date());
-      var icon = isEdit ? milestone.icon : '◆';
+      var status = isEdit ? (milestone.status || 'pending') : 'pending';
 
       this.open(
         '<div class="modal-title">' + title + '</div>'
@@ -1263,12 +1366,10 @@
         + '<input type="text" id="modal-ms-name" value="' + _escapeHtml(name) + '" placeholder="请输入名称"></div>'
         + '<div class="modal-field"><label>日期</label>'
         + '<input type="date" id="modal-ms-date" value="' + date + '"></div>'
-        + '<div class="modal-field"><label>图标</label>'
-        + '<select id="modal-ms-icon">'
-        + '<option value="◆"' + (icon === '◆' ? ' selected' : '') + '>◆ 菱形</option>'
-        + '<option value="★"' + (icon === '★' ? ' selected' : '') + '>★ 星形</option>'
-        + '<option value="●"' + (icon === '●' ? ' selected' : '') + '>● 圆形</option>'
-        + '<option value="▲"' + (icon === '▲' ? ' selected' : '') + '>▲ 三角</option>'
+        + '<div class="modal-field"><label>状态</label>'
+        + '<select id="modal-ms-status">'
+        + '<option value="pending"' + (status === 'pending' ? ' selected' : '') + '>□ 待办</option>'
+        + '<option value="done"' + (status === 'done' ? ' selected' : '') + '>○ 已完成</option>'
         + '</select></div>'
         + '<div class="modal-actions">'
         + '<button onclick="ModalManager.close()">取消</button>'
@@ -1279,11 +1380,11 @@
       document.getElementById('modal-save-btn').addEventListener('click', function() {
         var nameVal = document.getElementById('modal-ms-name').value.trim();
         var dateVal = document.getElementById('modal-ms-date').value;
-        var iconVal = document.getElementById('modal-ms-icon').value;
+        var statusVal = document.getElementById('modal-ms-status').value;
         if (!nameVal) { alert('请输入名称'); return; }
         if (!dateVal) { alert('请选择日期'); return; }
         ModalManager.close();
-        onSave({ name: nameVal, date: dateVal, icon: iconVal, taskId: parentInfo.taskId });
+        onSave({ name: nameVal, date: dateVal, status: statusVal, taskId: parentInfo.taskId });
       });
 
       document.getElementById('modal-ms-name').focus();
@@ -1329,8 +1430,8 @@
       var isHighlighted = this.hoveredTaskId === task.id;
       var color = TaskManager.getEffectiveColor(task);
 
-      var statusIcon = task.status === 'done' ? '✓' : task.status === 'inProgress' ? '►' : '○';
-      var statusColor = task.status === 'done' ? '#2ecc71' : task.status === 'inProgress' ? '#f39c12' : '#ccc';
+      var statusIcon = task.status === 'done' ? '✓' : task.status === 'thirdParty' ? '◈' : '►';
+      var statusColor = task.status === 'done' ? '#27ae60' : task.status === 'thirdParty' ? '#9b59b6' : '#3498db';
 
       var rowCls = 'tree-node-row';
       if (isSelected) rowCls += ' selected';
@@ -1383,8 +1484,8 @@
             e.stopPropagation();
             var task = TaskManager.getTask(taskId);
             if (!task) return;
-            var newStatus = task.status === 'todo' ? 'inProgress' :
-                            task.status === 'inProgress' ? 'done' : 'todo';
+            var newStatus = task.status === 'inProgress' ? 'thirdParty' :
+                            task.status === 'thirdParty' ? 'done' : 'inProgress';
             TaskManager.updateTask(taskId, { status: newStatus });
             self.render();
             App.renderAll();
@@ -1425,8 +1526,8 @@
           if (depth < 2) {
             items.push({ label: '添加子任务', action: function() { App.showAddTask(taskId); } });
           }
-          items.push({ label: '标记为待办', action: function() { TaskManager.updateTask(taskId, { status: 'todo' }); self.render(); App.renderAll(); } });
-          items.push({ label: '标记为进行中', action: function() { TaskManager.updateTask(taskId, { status: 'inProgress' }); self.render(); App.renderAll(); } });
+          items.push({ label: '标记为正在进行', action: function() { TaskManager.updateTask(taskId, { status: 'inProgress' }); self.render(); App.renderAll(); } });
+          items.push({ label: '标记为第三方跟进', action: function() { TaskManager.updateTask(taskId, { status: 'thirdParty' }); self.render(); App.renderAll(); } });
           items.push({ label: '标记为已完成', action: function() { TaskManager.updateTask(taskId, { status: 'done' }); self.render(); App.renderAll(); } });
           items.push({ label: '编辑任务', action: function() { App.showEditTask(taskId); } });
           items.push({ label: '设置颜色', action: function() { App.showColorPicker(taskId); } });
@@ -1473,8 +1574,8 @@
           if (depth < 2) {
             items.push({ label: '添加子任务', action: function() { App.showAddTask(taskId); } });
           }
-          items.push({ label: '标记为待办', action: function() { TaskManager.updateTask(taskId, { status: 'todo' }); self.render(); App.renderAll(); } });
-          items.push({ label: '标记为进行中', action: function() { TaskManager.updateTask(taskId, { status: 'inProgress' }); self.render(); App.renderAll(); } });
+          items.push({ label: '标记为正在进行', action: function() { TaskManager.updateTask(taskId, { status: 'inProgress' }); self.render(); App.renderAll(); } });
+          items.push({ label: '标记为第三方跟进', action: function() { TaskManager.updateTask(taskId, { status: 'thirdParty' }); self.render(); App.renderAll(); } });
           items.push({ label: '标记为已完成', action: function() { TaskManager.updateTask(taskId, { status: 'done' }); self.render(); App.renderAll(); } });
           items.push({ label: '编辑任务', action: function() { App.showEditTask(taskId); } });
           items.push({ label: '设置颜色', action: function() { App.showColorPicker(taskId); } });
@@ -1982,7 +2083,7 @@
           // 最小宽度限制为 20px 保证可视性
           var barW = Math.max(endX - barX, 20);
 
-          var statusCls = task.status === 'done' ? ' status-done' : '';
+          var statusCls = task.status === 'done' ? ' status-done' : task.status === 'thirdParty' ? ' status-thirdParty' : '';
           var selectedCls = (TreeView.selectedTaskId === task.id) ? ' selected' : '';
           var assigneeText = task.assignee ? ' [' + _escapeHtml(task.assignee) + ']' : '';
 
@@ -1997,7 +2098,9 @@
           milestones.forEach(function(ms) {
             // 里程碑放在单元格中间位置
             var msX = self._dateToX(ms.date) + self.cellWidth / 2;
-            bodyHtml += '<div class="gantt-milestone" style="left:' + msX + 'px;top:' + (rowIndex * 36 + 4) + 'px;" data-milestone-id="' + ms.id + '" data-task-id="' + task.id + '" title="' + _escapeHtml(ms.name) + ' (' + ms.date + ')">' + ms.icon + '</div>';
+            var msIcon = (ms.status === 'done') ? '○' : '□';
+            var msClass = 'gantt-milestone' + (ms.status === 'done' ? ' done' : '');
+            bodyHtml += '<div class="' + msClass + '" style="left:' + msX + 'px;top:' + (rowIndex * 36 + 4) + 'px;" data-milestone-id="' + ms.id + '" data-task-id="' + task.id + '" title="' + _escapeHtml(ms.name) + ' (' + ms.date + ')">' + msIcon + '</div>';
           });
         });
       });
@@ -2130,11 +2233,13 @@
       this.container.querySelectorAll('.gantt-milestone').forEach(function(el) {
         el.addEventListener('click', function(e) {
           e.stopPropagation();
-          App.showEditMilestone(el.dataset.milestoneId);
+          // 左键点击切换里程碑状态
+          App.toggleMilestoneStatus(el.dataset.milestoneId);
         });
         el.addEventListener('contextmenu', function(e) {
           e.preventDefault();
           e.stopPropagation();
+          // 右键显示编辑菜单
           TreeView.showContextMenu(e.clientX, e.clientY, [
             { label: '编辑里程碑', action: function() { App.showEditMilestone(el.dataset.milestoneId); } },
             { label: '删除里程碑', action: function() { App.deleteMilestone(el.dataset.milestoneId); }, danger: true }
@@ -2771,7 +2876,7 @@
           if (!range.startDate || !range.endDate) return;
           if (dateStr >= range.startDate && dateStr <= range.endDate) {
             var color = TaskManager.getEffectiveColor(task);
-            var opacity = task.status === 'done' ? '0.5' : '1';
+            var opacity = task.status === 'done' ? '0.5' : task.status === 'thirdParty' ? '0.7' : '1';
             var showName = dateStr === range.startDate || date.getDay() === 1;
             html += '<div class="calendar-task-bar" style="background:' + color + ';opacity:' + opacity + ';" data-task-id="' + task.id + '" title="' + _escapeHtml(task.name) + '">' + (showName ? _escapeHtml(task.name) : '&nbsp;') + '</div>';
           }
@@ -2779,7 +2884,9 @@
 
         allMilestones.forEach(function(ms) {
           if (ms.date === dateStr) {
-            html += '<div class="calendar-milestone-item" data-milestone-id="' + ms.id + '" title="' + _escapeHtml(ms.name) + '">' + ms.icon + ' ' + _escapeHtml(ms.name) + '</div>';
+            var msIcon = (ms.status === 'done') ? '○' : '□';
+            var msClass = 'calendar-milestone-item' + (ms.status === 'done' ? ' done' : '');
+            html += '<div class="' + msClass + '" data-milestone-id="' + ms.id + '" title="' + _escapeHtml(ms.name) + '">' + msIcon + ' ' + _escapeHtml(ms.name) + '</div>';
           }
         });
 
@@ -2818,7 +2925,7 @@
       this.container.querySelectorAll('.calendar-milestone-item').forEach(function(el) {
         el.addEventListener('click', function(e) {
           e.stopPropagation();
-          App.showEditMilestone(el.dataset.milestoneId);
+          App.toggleMilestoneStatus(el.dataset.milestoneId);
         });
       });
 
@@ -2949,6 +3056,45 @@
         CalendarView.render();
       }
       this._updateStatusBar();
+      this._updateTodosSidebar();
+    },
+
+    _updateTodosSidebar: function() {
+      var today = DataStore.formatDate(new Date());
+      var allMilestones = TaskManager.getAllMilestones();
+      var todayMilestones = allMilestones.filter(function(ms) {
+        return ms.date === today;
+      });
+
+      var container = document.getElementById('todos-list');
+      if (!container) return;
+
+      if (todayMilestones.length === 0) {
+        container.innerHTML = '<div class="todos-empty">今日暂无待办</div>';
+        return;
+      }
+
+      var html = '';
+      todayMilestones.forEach(function(ms) {
+        var task = TaskManager.getTask(ms.taskId);
+        var isDone = ms.status === 'done';
+        var icon = isDone ? '○' : '□';
+        var doneClass = isDone ? ' done' : '';
+        html += '<div class="todo-item' + doneClass + '" data-milestone-id="' + ms.id + '">'
+          + '<span class="todo-icon">' + icon + '</span>'
+          + '<div class="todo-content">'
+          + '<div class="todo-name">' + _escapeHtml(ms.name) + '</div>'
+          + '<div class="todo-task">' + (task ? _escapeHtml(task.name) : '') + '</div>'
+          + '</div></div>';
+      });
+      container.innerHTML = html;
+
+      // Bind click events
+      container.querySelectorAll('.todo-item').forEach(function(el) {
+        el.addEventListener('click', function() {
+          App.toggleMilestoneStatus(el.dataset.milestoneId);
+        });
+      });
     },
 
     _bindToolbar: function() {
@@ -2998,10 +3144,11 @@
     _updateStatusBar: function() {
       var allTasks = TaskManager.getAllTasks();
       var leafTasks = allTasks.filter(function(t) { return TaskManager.getChildren(t.id).length === 0; });
-      var done = leafTasks.filter(function(t) { return t.status === 'done'; }).length;
       var inProgress = leafTasks.filter(function(t) { return t.status === 'inProgress'; }).length;
+      var thirdParty = leafTasks.filter(function(t) { return t.status === 'thirdParty'; }).length;
+      var done = leafTasks.filter(function(t) { return t.status === 'done'; }).length;
       document.getElementById('status-text').textContent =
-        allTasks.length + ' 个任务 · ' + leafTasks.length + ' 个叶子任务（进行中 ' + inProgress + '，已完成 ' + done + '）';
+        allTasks.length + ' 个任务 · ' + leafTasks.length + ' 个叶子任务（进行中 ' + inProgress + '，第三方 ' + thirdParty + '，已完成 ' + done + '）';
       document.getElementById('status-info').textContent = 'PMWEB v2.0';
     },
 
@@ -3114,6 +3261,14 @@
       });
     },
 
+    toggleMilestoneStatus: function(milestoneId) {
+      var milestone = TaskManager.data.milestones.find(function(m) { return m.id === milestoneId; });
+      if (!milestone) return;
+      var newStatus = (milestone.status === 'done') ? 'pending' : 'done';
+      TaskManager.updateMilestone(milestoneId, { status: newStatus });
+      this.renderAll();
+    },
+
     deleteMilestone: function(milestoneId) {
       var self = this;
       var milestone = TaskManager.data.milestones.find(function(m) { return m.id === milestoneId; });
@@ -3171,7 +3326,7 @@
         for (var i = 1; i < depth; i++) indent += '　';
         if (depth > 1) indent += '├ ';
 
-        var statusMap = { 'todo': '待办', 'in_progress': '进行中', 'done': '已完成' };
+        var statusMap = { 'inProgress': '正在进行', 'thirdParty': '第三方跟进', 'done': '已完成', 'todo': '正在进行' };
         var range = TaskManager.getDateRange(task);
 
         taskData.push([
@@ -3208,7 +3363,7 @@
       XLSX.utils.book_append_sheet(wb, ws1, '任务列表');
 
       // ========== Sheet 2: 里程碑 ==========
-      var msHeaders = ['任务名称', '里程碑名称', '日期', '图标'];
+      var msHeaders = ['任务名称', '里程碑名称', '日期', '状态'];
       var msData = [msHeaders];
 
       milestones.forEach(function(ms) {
@@ -3217,7 +3372,7 @@
           task ? task.name : '',
           ms.name,
           ms.date,
-          ms.icon
+          ms.status === 'done' ? '已完成' : '待办'
         ]);
       });
 
