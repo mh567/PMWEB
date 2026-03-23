@@ -502,6 +502,26 @@
     .gantt-header-cell.weekend .weekday {
       color: #e74c3c;
     }
+    .gantt-header-row {
+      display: flex;
+    }
+    .gantt-header-parent {
+      background: var(--color-header);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .gantt-header-group {
+      flex-shrink: 0;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--color-text);
+      padding: 6px 4px;
+      border-right: 1px solid var(--color-border);
+      background: rgba(74, 144, 217, 0.1);
+    }
+    .gantt-header-group:last-child {
+      border-right: none;
+    }
     .gantt-body {
       flex: 1;
       overflow: auto;
@@ -769,8 +789,9 @@
     <div class="toolbar-sep"></div>
     <div class="btn-group" id="granularity-group">
       <button class="btn" id="btn-granularity-year">年</button>
-      <button class="btn active" id="btn-granularity-month">月</button>
+      <button class="btn" id="btn-granularity-month">月</button>
       <button class="btn" id="btn-granularity-week">周</button>
+      <button class="btn active" id="btn-granularity-day">日</button>
     </div>
   </div>
 
@@ -829,7 +850,7 @@
         pmweb_version: this.CURRENT_VERSION,
         tasks: [],
         milestones: [],
-        settings: { lastView: 'gantt', lastGranularity: 'month' }
+        settings: { lastView: 'gantt', lastGranularity: 'day' }
       };
     },
 
@@ -907,7 +928,7 @@
         pmweb_version: 2,
         tasks: [],
         milestones: [],
-        settings: v1.settings || { lastView: 'gantt', lastGranularity: 'month' }
+        settings: v1.settings || { lastView: 'gantt', lastGranularity: 'day' }
       };
       var projectIdMap = {};
       var projects = v1.projects || [];
@@ -1826,11 +1847,12 @@
   // ============================================================
   const GanttView = {
     container: null,
-    granularity: 'month',
-    cellWidth: 80,
+    granularity: 'day',
+    cellWidth: 40,
     startDate: null,
     endDate: null,
     cells: [],
+    parentGroups: [],
 
     init: function(container) {
       this.container = container;
@@ -1865,57 +1887,132 @@
       var minDate = _parseDate(allDates[0]);
       var maxDate = _parseDate(allDates[allDates.length - 1]);
 
-      var pad = this.granularity === 'year' ? 30 : this.granularity === 'month' ? 14 : 7;
+      var pad = this.granularity === 'year' ? 365 : this.granularity === 'month' ? 60 : this.granularity === 'week' ? 14 : 7;
       this.startDate = new Date(minDate);
       this.startDate.setDate(this.startDate.getDate() - pad);
       this.endDate = new Date(maxDate);
       this.endDate.setDate(this.endDate.getDate() + pad);
 
+      // 根据粒度对齐起始日期
       if (this.granularity === 'year') {
-        this.startDate.setDate(1);
+        // 对齐到1月1日
+        this.startDate = new Date(this.startDate.getFullYear(), 0, 1);
       } else if (this.granularity === 'month') {
+        // 对齐到月初
+        this.startDate = new Date(this.startDate.getFullYear(), this.startDate.getMonth(), 1);
+      } else if (this.granularity === 'week') {
+        // 对齐到周一
         var day = this.startDate.getDay();
         this.startDate.setDate(this.startDate.getDate() - ((day + 6) % 7));
       }
+      // day视图不需要特殊对齐
     },
 
     _generateCells: function() {
       this.cells = [];
+      this.parentGroups = []; // 用于存储父级分组信息
       var d = new Date(this.startDate);
 
       if (this.granularity === 'year') {
+        // 年视图：每个单元格 = 1年
+        this.cellWidth = 100;
+        d.setMonth(0, 1); // 从1月1日开始
+        while (d <= this.endDate) {
+          var year = d.getFullYear();
+          var start = new Date(year, 0, 1);
+          var end = new Date(year, 11, 31);
+          this.cells.push({ label: String(year), start: start, end: end, days: 365 });
+          d.setFullYear(d.getFullYear() + 1);
+        }
+      } else if (this.granularity === 'month') {
+        // 月视图：每个单元格 = 1月，上方显示年份
         this.cellWidth = 80;
         d.setDate(1);
+        var currentYear = null;
+        var yearStartIndex = 0;
         while (d <= this.endDate) {
-          var label = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+          var year = d.getFullYear();
+          var month = d.getMonth();
           var start = new Date(d);
           d.setMonth(d.getMonth() + 1);
           var end = new Date(d);
           end.setDate(end.getDate() - 1);
-          this.cells.push({ label: label, start: start, end: end, days: this._daysBetween(start, end) + 1 });
+          var days = this._daysBetween(start, end) + 1;
+          var label = (month + 1) + '月';
+          this.cells.push({ label: label, start: start, end: end, days: days, year: year });
+          // 记录年份分组
+          if (year !== currentYear) {
+            if (currentYear !== null) {
+              this.parentGroups.push({ label: currentYear + '年', startIndex: yearStartIndex, count: this.cells.length - yearStartIndex });
+            }
+            currentYear = year;
+            yearStartIndex = this.cells.length;
+          }
         }
-      } else if (this.granularity === 'month') {
-        this.cellWidth = 80;
+        // 添加最后一个年份分组
+        if (currentYear !== null) {
+          this.parentGroups.push({ label: currentYear + '年', startIndex: yearStartIndex, count: this.cells.length - yearStartIndex });
+        }
+      } else if (this.granularity === 'week') {
+        // 周视图：每个单元格 = 1周，上方显示月份
+        this.cellWidth = 60;
+        // 对齐到周一
         var day = d.getDay();
         d.setDate(d.getDate() - ((day + 6) % 7));
+        var currentMonth = null;
+        var monthStartIndex = 0;
         while (d <= this.endDate) {
           var start = new Date(d);
           d.setDate(d.getDate() + 7);
           var end = new Date(d);
           end.setDate(end.getDate() - 1);
           var weekNum = this._getWeekNumber(start);
-          this.cells.push({ label: 'W' + weekNum, start: start, end: end, days: 7 });
+          var month = start.getMonth();
+          var year = start.getFullYear();
+          var label = 'W' + weekNum;
+          this.cells.push({ label: label, start: start, end: end, days: 7, month: month, year: year });
+          // 记录月份分组
+          var monthKey = year + '-' + month;
+          if (monthKey !== currentMonth) {
+            if (currentMonth !== null) {
+              this.parentGroups.push({ label: (parseInt(currentMonth.split('-')[1]) + 1) + '月', startIndex: monthStartIndex, count: this.cells.length - monthStartIndex });
+            }
+            currentMonth = monthKey;
+            monthStartIndex = this.cells.length;
+          }
+        }
+        // 添加最后一个月份分组
+        if (currentMonth !== null) {
+          this.parentGroups.push({ label: (parseInt(currentMonth.split('-')[1]) + 1) + '月', startIndex: monthStartIndex, count: this.cells.length - monthStartIndex });
         }
       } else {
+        // 日视图：每个单元格 = 1天，上方显示周
         this.cellWidth = 40;
         var weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+        var currentWeek = null;
+        var weekStartIndex = 0;
         while (d <= this.endDate) {
           var start = new Date(d);
           var dayOfWeek = d.getDay();
           var weekdayLabel = weekdays[(dayOfWeek + 6) % 7];
-          var label = (d.getMonth() + 1) + '/' + d.getDate();
-          this.cells.push({ label: label, weekday: weekdayLabel, start: start, end: new Date(d), days: 1, isWeekend: dayOfWeek === 0 || dayOfWeek === 6 });
+          var label = d.getDate().toString();
+          var weekNum = this._getWeekNumber(d);
+          var year = d.getFullYear();
+          var weekKey = year + '-W' + weekNum;
+          this.cells.push({ label: label, weekday: weekdayLabel, start: start, end: new Date(d), days: 1, isWeekend: dayOfWeek === 0 || dayOfWeek === 6, week: weekNum, year: year });
+          // 记录周分组
+          if (weekKey !== currentWeek) {
+            if (currentWeek !== null) {
+              this.parentGroups.push({ label: 'W' + weekNum, startIndex: weekStartIndex, count: this.cells.length - weekStartIndex });
+            }
+            currentWeek = weekKey;
+            weekStartIndex = this.cells.length;
+          }
           d.setDate(d.getDate() + 1);
+        }
+        // 添加最后一周分组
+        if (currentWeek !== null && this.cells.length > weekStartIndex) {
+          this.parentGroups.push({ label: 'W' + this.cells[this.cells.length - 1].week, startIndex: weekStartIndex, count: this.cells.length - weekStartIndex });
         }
       }
     },
@@ -2043,14 +2140,28 @@
       var today = DataStore.formatDate(new Date());
       var self = this;
 
-      // header 需要一个外层包装容器来控制 overflow
+      // 生成时间轴头部（支持两行显示）
       var headerHtml = '<div class="gantt-header-wrapper"><div class="gantt-header" style="width:' + totalWidth + 'px;">';
+
+      // 第一行：父级粒度信息（年视图不需要）
+      if (this.granularity !== 'year' && this.parentGroups.length > 0) {
+        headerHtml += '<div class="gantt-header-row gantt-header-parent">';
+        this.parentGroups.forEach(function(group) {
+          var width = group.count * self.cellWidth;
+          headerHtml += '<div class="gantt-header-group" style="width:' + width + 'px;">' + group.label + '</div>';
+        });
+        headerHtml += '</div>';
+      }
+
+      // 第二行：当前粒度信息
+      headerHtml += '<div class="gantt-header-row">';
       this.cells.forEach(function(cell) {
         var cls = 'gantt-header-cell';
         if (cell.isWeekend) cls += ' weekend';
         var weekdayHtml = cell.weekday ? '<div class="weekday">' + cell.weekday + '</div>' : '';
         headerHtml += '<div class="' + cls + '" style="width:' + self.cellWidth + 'px;">' + weekdayHtml + '<div>' + cell.label + '</div></div>';
       });
+      headerHtml += '</div>';
       headerHtml += '</div></div>';
 
       var rows = this._buildRows(leafTasks);
@@ -2800,8 +2911,9 @@
     },
 
     _daysPerCell: function() {
-      if (GanttView.granularity === 'year') return 30;
-      if (GanttView.granularity === 'month') return 7;
+      if (GanttView.granularity === 'year') return 365;
+      if (GanttView.granularity === 'month') return 30;
+      if (GanttView.granularity === 'week') return 7;
       return 1;
     },
 
@@ -2995,7 +3107,7 @@
       this._setupSidebarResize();
 
       this.currentView = TaskManager.getSetting('lastView') || 'gantt';
-      var granularity = TaskManager.getSetting('lastGranularity') || 'month';
+      var granularity = TaskManager.getSetting('lastGranularity') || 'day';
       GanttView.granularity = granularity;
 
       this._bindToolbar();
@@ -3108,6 +3220,7 @@
       document.getElementById('btn-granularity-year').addEventListener('click', function() { self.switchGranularity('year'); });
       document.getElementById('btn-granularity-month').addEventListener('click', function() { self.switchGranularity('month'); });
       document.getElementById('btn-granularity-week').addEventListener('click', function() { self.switchGranularity('week'); });
+      document.getElementById('btn-granularity-day').addEventListener('click', function() { self.switchGranularity('day'); });
 
       document.getElementById('btn-add-root-task').addEventListener('click', function() {
         self.showAddTask(null);
@@ -3139,6 +3252,7 @@
       document.getElementById('btn-granularity-year').classList.toggle('active', GanttView.granularity === 'year');
       document.getElementById('btn-granularity-month').classList.toggle('active', GanttView.granularity === 'month');
       document.getElementById('btn-granularity-week').classList.toggle('active', GanttView.granularity === 'week');
+      document.getElementById('btn-granularity-day').classList.toggle('active', GanttView.granularity === 'day');
     },
 
     _updateStatusBar: function() {
