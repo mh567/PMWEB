@@ -1986,34 +1986,18 @@
           this.parentGroups.push({ label: (parseInt(currentMonth.split('-')[1]) + 1) + '月', startIndex: monthStartIndex, count: this.cells.length - monthStartIndex });
         }
       } else {
-        // 日视图：每个单元格 = 1天，上方显示周
+        // 日视图：每个单元格 = 1天，上方显示星期几
         this.cellWidth = 40;
         var weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-        var currentWeek = null;
-        var weekStartIndex = 0;
         while (d <= this.endDate) {
           var start = new Date(d);
           var dayOfWeek = d.getDay();
           var weekdayLabel = weekdays[(dayOfWeek + 6) % 7];
           var label = d.getDate().toString();
-          var weekNum = this._getWeekNumber(d);
-          var year = d.getFullYear();
-          var weekKey = year + '-W' + weekNum;
-          this.cells.push({ label: label, weekday: weekdayLabel, start: start, end: new Date(d), days: 1, isWeekend: dayOfWeek === 0 || dayOfWeek === 6, week: weekNum, year: year });
-          // 记录周分组
-          if (weekKey !== currentWeek) {
-            if (currentWeek !== null) {
-              this.parentGroups.push({ label: 'W' + weekNum, startIndex: weekStartIndex, count: this.cells.length - weekStartIndex });
-            }
-            currentWeek = weekKey;
-            weekStartIndex = this.cells.length;
-          }
+          this.cells.push({ label: label, weekday: weekdayLabel, start: start, end: new Date(d), days: 1, isWeekend: dayOfWeek === 0 || dayOfWeek === 6 });
           d.setDate(d.getDate() + 1);
         }
-        // 添加最后一周分组
-        if (currentWeek !== null && this.cells.length > weekStartIndex) {
-          this.parentGroups.push({ label: 'W' + this.cells[this.cells.length - 1].week, startIndex: weekStartIndex, count: this.cells.length - weekStartIndex });
-        }
+        // 日视图不使用 parentGroups，每个单元格独立显示星期
       }
     },
 
@@ -2143,25 +2127,44 @@
       // 生成时间轴头部（支持两行显示）
       var headerHtml = '<div class="gantt-header-wrapper"><div class="gantt-header" style="width:' + totalWidth + 'px;">';
 
-      // 第一行：父级粒度信息（年视图不需要）
-      if (this.granularity !== 'year' && this.parentGroups.length > 0) {
-        headerHtml += '<div class="gantt-header-row gantt-header-parent">';
-        this.parentGroups.forEach(function(group) {
-          var width = group.count * self.cellWidth;
-          headerHtml += '<div class="gantt-header-group" style="width:' + width + 'px;">' + group.label + '</div>';
+      // 日视图特殊处理：上行显示星期几，下行显示日期
+      if (this.granularity === 'day') {
+        // 第一行：星期几
+        headerHtml += '<div class="gantt-header-row">';
+        this.cells.forEach(function(cell) {
+          var cls = 'gantt-header-cell';
+          if (cell.isWeekend) cls += ' weekend';
+          headerHtml += '<div class="' + cls + '" style="width:' + self.cellWidth + 'px;"><div>' + cell.weekday + '</div></div>';
+        });
+        headerHtml += '</div>';
+        // 第二行：日期
+        headerHtml += '<div class="gantt-header-row">';
+        this.cells.forEach(function(cell) {
+          var cls = 'gantt-header-cell';
+          if (cell.isWeekend) cls += ' weekend';
+          headerHtml += '<div class="' + cls + '" style="width:' + self.cellWidth + 'px;"><div>' + cell.label + '</div></div>';
+        });
+        headerHtml += '</div>';
+      } else {
+        // 其他视图：第一行显示父级粒度信息（年视图不需要）
+        if (this.granularity !== 'year' && this.parentGroups.length > 0) {
+          headerHtml += '<div class="gantt-header-row gantt-header-parent">';
+          this.parentGroups.forEach(function(group) {
+            var width = group.count * self.cellWidth;
+            headerHtml += '<div class="gantt-header-group" style="width:' + width + 'px;">' + group.label + '</div>';
+          });
+          headerHtml += '</div>';
+        }
+        // 第二行：当前粒度信息
+        headerHtml += '<div class="gantt-header-row">';
+        this.cells.forEach(function(cell) {
+          var cls = 'gantt-header-cell';
+          if (cell.isWeekend) cls += ' weekend';
+          var weekdayHtml = cell.weekday ? '<div class="weekday">' + cell.weekday + '</div>' : '';
+          headerHtml += '<div class="' + cls + '" style="width:' + self.cellWidth + 'px;">' + weekdayHtml + '<div>' + cell.label + '</div></div>';
         });
         headerHtml += '</div>';
       }
-
-      // 第二行：当前粒度信息
-      headerHtml += '<div class="gantt-header-row">';
-      this.cells.forEach(function(cell) {
-        var cls = 'gantt-header-cell';
-        if (cell.isWeekend) cls += ' weekend';
-        var weekdayHtml = cell.weekday ? '<div class="weekday">' + cell.weekday + '</div>' : '';
-        headerHtml += '<div class="' + cls + '" style="width:' + self.cellWidth + 'px;">' + weekdayHtml + '<div>' + cell.label + '</div></div>';
-      });
-      headerHtml += '</div>';
       headerHtml += '</div></div>';
 
       var rows = this._buildRows(leafTasks);
