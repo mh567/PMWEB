@@ -1973,13 +1973,13 @@
         }
       } else {
         // 日视图：每个单元格 = 1天，上方显示星期几
-        this.cellWidth = 45;
+        this.cellWidth = 45; // 需要45px宽度容纳"3/24"格式
         var weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
         while (d <= this.endDate) {
           var start = new Date(d);
           var dayOfWeek = d.getDay();
           var weekdayLabel = weekdays[(dayOfWeek + 6) % 7];
-          var label = (d.getMonth() + 1) + '/' + d.getDate();
+          var label = (d.getMonth() + 1) + '/' + String(d.getDate()).padStart(2, '0');
           this.cells.push({ label: label, weekday: weekdayLabel, start: start, end: new Date(d), days: 1, isWeekend: dayOfWeek === 0 || dayOfWeek === 6 });
           d.setDate(d.getDate() + 1);
         }
@@ -2094,7 +2094,7 @@
       // 保存当前滚动位置对应的日期（如果是重新渲染）
       var prevGanttBody = this.container.querySelector('.gantt-body');
       var savedDate = null;
-      if (prevGanttBody && prevGanttBody.scrollLeft > 0 && this.cells.length > 0) {
+      if (prevGanttBody && prevGanttBody.scrollLeft > 0) {
         // 记录当前滚动位置对应的日期
         savedDate = this._xToDate(prevGanttBody.scrollLeft + prevGanttBody.clientWidth / 2);
       }
