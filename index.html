@@ -2091,9 +2091,13 @@
     },
 
     render: function() {
-      // 保存当前滚动位置（如果是重新渲染）
+      // 保存当前滚动位置对应的日期（如果是重新渲染）
       var prevGanttBody = this.container.querySelector('.gantt-body');
-      var savedScrollLeft = prevGanttBody ? prevGanttBody.scrollLeft : null;
+      var savedDate = null;
+      if (prevGanttBody && prevGanttBody.scrollLeft > 0 && this.cells.length > 0) {
+        // 记录当前滚动位置对应的日期
+        savedDate = this._xToDate(prevGanttBody.scrollLeft + prevGanttBody.clientWidth / 2);
+      }
 
       this._calcDateRange();
       this._generateCells();
@@ -2214,9 +2218,10 @@
 
       var ganttBody = this.container.querySelector('.gantt-body');
       if (ganttBody) {
-        if (savedScrollLeft !== null) {
-          // 恢复之前的滚动位置
-          ganttBody.scrollLeft = savedScrollLeft;
+        if (savedDate) {
+          // 恢复到之前滚动位置对应的日期
+          var newX = this._dateToX(savedDate);
+          ganttBody.scrollLeft = Math.max(0, newX - ganttBody.clientWidth / 2);
         } else if (todayX > 0) {
           // 仅在初始渲染时滚动到今天
           ganttBody.scrollLeft = Math.max(0, todayX - ganttBody.clientWidth / 2);
