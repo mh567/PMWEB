@@ -1988,13 +1988,13 @@
         }
       } else {
         // 日视图：每个单元格 = 1天，上方显示星期几
-        this.cellWidth = 40;
+        this.cellWidth = 45;
         var weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
         while (d <= this.endDate) {
           var start = new Date(d);
           var dayOfWeek = d.getDay();
           var weekdayLabel = weekdays[(dayOfWeek + 6) % 7];
-          var label = d.getDate().toString();
+          var label = (d.getMonth() + 1) + '/' + d.getDate();
           this.cells.push({ label: label, weekday: weekdayLabel, start: start, end: new Date(d), days: 1, isWeekend: dayOfWeek === 0 || dayOfWeek === 6 });
           d.setDate(d.getDate() + 1);
         }
