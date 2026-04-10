@@ -958,7 +958,11 @@
         pmweb_version: this.CURRENT_VERSION,
         tasks: [],
         milestones: [],
-        settings: { lastView: 'gantt', lastGranularity: 'day' }
+        settings: {
+          lastView: 'gantt',
+          lastGranularity: 'day',
+          statusFilter: { inProgress: true, thirdParty: true, done: true }
+        }
       };
     },
 
