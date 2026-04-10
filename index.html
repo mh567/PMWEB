@@ -1593,6 +1593,12 @@
           App.onTaskSelected(taskId);
         });
 
+        // Double-click to edit task
+        el.addEventListener('dblclick', function(e) {
+          if (e.target.closest('.node-actions')) return;
+          App.showEditTask(taskId);
+        });
+
         el.addEventListener('mouseenter', function() {
           self.hoveredTaskId = taskId;
           App.onTaskHovered(taskId);
