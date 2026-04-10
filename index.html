@@ -557,19 +557,66 @@
       color: #fff;
       display: flex;
       align-items: center;
-      padding: 0 6px;
+      padding: 0 6px 0 8px;
       overflow: hidden;
       white-space: nowrap;
       min-width: 20px;
       transition: transform 0.12s, box-shadow 0.12s;
+    }
+    .gantt-bar::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: transparent;
+      border-radius: 3px 0 0 3px;
+    }
+    .gantt-bar::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      background: transparent;
+      pointer-events: none;
+      border-radius: 3px;
     }
     .gantt-bar:hover {
       filter: brightness(1.1);
       transform: translateY(-1px);
       box-shadow: 0 2px 8px rgba(0,0,0,0.18);
     }
-    .gantt-bar.status-done { opacity: 0.5; filter: grayscale(0.5); }
-    .gantt-bar.status-thirdParty { opacity: 0.7; }
+    /* 正在进行：左侧绿色竖条，视觉最突出 */
+    .gantt-bar.status-inProgress::before {
+      background: #22c55e;
+    }
+    /* 第三方跟进：降低饱和度 + 斜线条纹，视觉中等 */
+    .gantt-bar.status-thirdParty {
+      filter: saturate(0.6);
+    }
+    .gantt-bar.status-thirdParty::before {
+      background: #a855f7;
+    }
+    .gantt-bar.status-thirdParty::after {
+      background-image: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 4px,
+        rgba(0,0,0,0.08) 4px,
+        rgba(0,0,0,0.08) 8px
+      );
+    }
+    /* 已完成：灰色 + 最低不透明度，视觉最弱 */
+    .gantt-bar.status-done {
+      opacity: 0.45;
+      filter: grayscale(0.8);
+    }
+    .gantt-bar.status-done::before {
+      background: #9ca3af;
+    }
     .gantt-bar.highlight {
       filter: brightness(1.2);
       box-shadow: 0 0 8px rgba(74, 144, 217, 0.6);
@@ -989,7 +1036,7 @@
   // ============================================================
   var TaskManager = {
     data: null,
-    COLORS: ['#4a90d9', '#e67e22', '#2ecc71', '#9b59b6', '#e74c3c', '#1abc9c', '#f39c12', '#3498db', '#e91e63', '#00bcd4', '#8bc34a', '#ff5722'],
+    COLORS: ['#2563eb', '#dc2626', '#16a34a', '#9333ea', '#ea580c', '#0891b2', '#db2777', '#65a30d', '#7c3aed', '#0d9488', '#e11d48', '#ca8a04'],
 
     init: function() {
       this.data = DataStore.load();
@@ -2191,7 +2238,7 @@
           // 最小宽度限制为 20px 保证可视性
           var barW = Math.max(endX - barX, 20);
 
-          var statusCls = task.status === 'done' ? ' status-done' : task.status === 'thirdParty' ? ' status-thirdParty' : '';
+          var statusCls = task.status === 'done' ? ' status-done' : task.status === 'thirdParty' ? ' status-thirdParty' : ' status-inProgress';
           var selectedCls = (TreeView.selectedTaskId === task.id) ? ' selected' : '';
           var assigneeText = task.assignee ? ' [' + _escapeHtml(task.assignee) + ']' : '';
 
@@ -3005,9 +3052,9 @@
           if (!range.startDate || !range.endDate) return;
           if (dateStr >= range.startDate && dateStr <= range.endDate) {
             var color = TaskManager.getEffectiveColor(task);
-            var opacity = task.status === 'done' ? '0.5' : task.status === 'thirdParty' ? '0.7' : '1';
+            var statusStyle = task.status === 'done' ? 'opacity:0.45;filter:grayscale(0.8);' : task.status === 'thirdParty' ? 'filter:saturate(0.6);' : '';
             var showName = dateStr === range.startDate || date.getDay() === 1;
-            html += '<div class="calendar-task-bar" style="background:' + color + ';opacity:' + opacity + ';" data-task-id="' + task.id + '" title="' + _escapeHtml(task.name) + '">' + (showName ? _escapeHtml(task.name) : '&nbsp;') + '</div>';
+            html += '<div class="calendar-task-bar" style="background:' + color + ';' + statusStyle + '" data-task-id="' + task.id + '" title="' + _escapeHtml(task.name) + '">' + (showName ? _escapeHtml(task.name) : '&nbsp;') + '</div>';
           }
         });
 
