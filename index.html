@@ -3177,8 +3177,9 @@
       startDay.setDate(startDay.getDate() - dayOfWeek);
 
       var allTasks = TaskManager.getAllTasks();
+      var filter = TreeView.statusFilter;
       var leafTasks = allTasks.filter(function(t) {
-        return TaskManager.getChildren(t.id).length === 0;
+        return TaskManager.getChildren(t.id).length === 0 && filter[t.status] !== false;
       });
       var allMilestones = TaskManager.getAllMilestones();
 
@@ -3259,8 +3260,9 @@
         el.addEventListener('contextmenu', function(e) {
           e.preventDefault();
           var dateStr = el.dataset.date;
+          var filter = TreeView.statusFilter;
           var leafTasks = TaskManager.getAllTasks().filter(function(t) {
-            return TaskManager.getChildren(t.id).length === 0;
+            return TaskManager.getChildren(t.id).length === 0 && filter[t.status] !== false;
           });
           if (leafTasks.length === 0) return;
           var items = [];
