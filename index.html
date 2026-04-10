@@ -584,6 +584,10 @@
       margin-left: 4px;
       font-size: 10px;
     }
+    .gantt-bar-label {
+      display: inline-block;
+      transition: margin-left 0.1s ease-out;
+    }
     .gantt-milestone {
       position: absolute;
       top: 4px;
@@ -2196,7 +2200,7 @@
           var shortEndDate = range.endDate.slice(5);
           var barLabel = _escapeHtml(task.name) + ' <span class="gantt-bar-dates">(' + shortStartDate + ' ~ ' + shortEndDate + ')</span>';
 
-          bodyHtml += '<div class="gantt-bar' + statusCls + selectedCls + '" style="left:' + barX + 'px;width:' + barW + 'px;top:' + (rowIndex * 36 + 8) + 'px;background:' + color + ';" data-task-id="' + task.id + '" title="' + _escapeHtml(task.name) + assigneeText + ' (' + range.startDate + ' ~ ' + range.endDate + ')">' + barLabel + '</div>';
+          bodyHtml += '<div class="gantt-bar' + statusCls + selectedCls + '" style="left:' + barX + 'px;width:' + barW + 'px;top:' + (rowIndex * 36 + 8) + 'px;background:' + color + ';" data-task-id="' + task.id + '" data-bar-left="' + barX + '" title="' + _escapeHtml(task.name) + assigneeText + ' (' + range.startDate + ' ~ ' + range.endDate + ')"><span class="gantt-bar-label">' + barLabel + '</span></div>';
 
           var milestones = TaskManager.getMilestonesByTask(task.id);
           milestones.forEach(function(ms) {
@@ -2226,10 +2230,13 @@
           // 仅在初始渲染时滚动到今天
           ganttBody.scrollLeft = Math.max(0, todayX - ganttBody.clientWidth / 2);
         }
+        // 初始触发一次滚动同步，确保标签位置正确
+        if (this._scrollSyncHandler) this._scrollSyncHandler();
       }
     },
 
     _setupScrollSync: function() {
+      var self = this;
       var ganttBody = this.container.querySelector('.gantt-body');
       var ganttHeader = this.container.querySelector('.gantt-header');
       if (!ganttBody || !ganttHeader) return;
@@ -2242,6 +2249,23 @@
       this._scrollSyncHandler = function() {
         // 使用 transform 移动 header 内容，因为 header 有 overflow:hidden 且 width=totalWidth
         ganttHeader.style.transform = 'translateX(' + (-ganttBody.scrollLeft) + 'px)';
+
+        // 固定任务标签：当任务条左侧超出可视区域时，标签固定在左边缘
+        var scrollLeft = ganttBody.scrollLeft;
+        var visibleWidth = ganttBody.clientWidth;
+        self.container.querySelectorAll('.gantt-bar').forEach(function(bar) {
+          var barLeft = parseFloat(bar.dataset.barLeft) || parseFloat(bar.style.left);
+          var label = bar.querySelector('.gantt-bar-label');
+          if (label) {
+            if (barLeft < scrollLeft) {
+              // 任务条起点在可视区域外，标签固定在左边缘
+              label.style.marginLeft = (scrollLeft - barLeft) + 'px';
+            } else {
+              // 任务条在可视区域内，正常显示
+              label.style.marginLeft = '0';
+            }
+          }
+        });
       };
       ganttBody.addEventListener('scroll', this._scrollSyncHandler);
     },
