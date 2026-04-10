@@ -1341,12 +1341,24 @@
   const ModalManager = {
     overlay: null,
     content: null,
+    _mouseDownOnOverlay: false,
 
     init: function() {
+      var self = this;
       this.overlay = document.getElementById('modal-overlay');
       this.content = document.getElementById('modal-box');
-      this.overlay.addEventListener('click', function(e) {
-        if (e.target === ModalManager.overlay) ModalManager.close();
+
+      // 记录 mousedown 是否发生在 overlay 上
+      this.overlay.addEventListener('mousedown', function(e) {
+        self._mouseDownOnOverlay = (e.target === self.overlay);
+      });
+
+      // 只有 mousedown 和 mouseup 都在 overlay 上才关闭
+      this.overlay.addEventListener('mouseup', function(e) {
+        if (self._mouseDownOnOverlay && e.target === self.overlay) {
+          self.close();
+        }
+        self._mouseDownOnOverlay = false;
       });
     },
 
