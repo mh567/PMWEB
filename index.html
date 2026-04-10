@@ -172,6 +172,52 @@
       color: var(--color-text);
     }
 
+    .filter-dropdown {
+      position: relative;
+    }
+    .filter-btn {
+      background: none;
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--color-text-light);
+    }
+    .filter-btn:hover {
+      background: var(--color-hover);
+    }
+    .filter-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      padding: 8px 0;
+      min-width: 140px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 100;
+    }
+    .filter-menu.active {
+      display: block;
+    }
+    .filter-item {
+      display: flex;
+      align-items: center;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--color-text);
+    }
+    .filter-item:hover {
+      background: var(--color-hover);
+    }
+    .filter-item input {
+      margin-right: 8px;
+    }
+
     #tree-container {
       flex: 1;
       padding: 8px 0;
@@ -857,6 +903,14 @@
       <div id="sidebar-resize-handle"></div>
       <div id="sidebar-header">
         <h2>任务列表</h2>
+        <div class="filter-dropdown">
+          <button class="filter-btn" id="btn-task-filter" title="过滤任务">☰</button>
+          <div class="filter-menu" id="filter-menu">
+            <label class="filter-item"><input type="checkbox" id="filter-inProgress" checked> 正在进行</label>
+            <label class="filter-item"><input type="checkbox" id="filter-thirdParty" checked> 第三方跟进</label>
+            <label class="filter-item"><input type="checkbox" id="filter-done" checked> 已完成</label>
+          </div>
+        </div>
       </div>
       <div id="tree-container"></div>
       <div id="sidebar-footer" style="padding:8px 12px;border-top:1px solid var(--color-border);flex-shrink:0;">
@@ -1487,11 +1541,79 @@
     collapsedTasks: new Set(),
     selectedTaskId: null,
     hoveredTaskId: null,
+    statusFilter: { inProgress: true, thirdParty: true, done: true },
 
     init: function() {
+      var self = this;
       this.container = document.getElementById('tree-container');
       this.contextMenu = document.getElementById('context-menu');
       document.addEventListener('click', function() { TreeView.hideContextMenu(); });
+
+      // 加载过滤设置
+      var savedFilter = TaskManager.getSetting('statusFilter');
+      if (savedFilter) {
+        this.statusFilter = savedFilter;
+      }
+      this._updateFilterCheckboxes();
+      this._bindFilterEvents();
+    },
+
+    _updateFilterCheckboxes: function() {
+      var cb1 = document.getElementById('filter-inProgress');
+      var cb2 = document.getElementById('filter-thirdParty');
+      var cb3 = document.getElementById('filter-done');
+      if (cb1) cb1.checked = this.statusFilter.inProgress;
+      if (cb2) cb2.checked = this.statusFilter.thirdParty;
+      if (cb3) cb3.checked = this.statusFilter.done;
+    },
+
+    _bindFilterEvents: function() {
+      var self = this;
+      var filterBtn = document.getElementById('btn-task-filter');
+      var filterMenu = document.getElementById('filter-menu');
+
+      if (filterBtn && filterMenu) {
+        filterBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          filterMenu.classList.toggle('active');
+        });
+
+        filterMenu.addEventListener('click', function(e) {
+          e.stopPropagation();
+        });
+
+        ['filter-inProgress', 'filter-thirdParty', 'filter-done'].forEach(function(id) {
+          var cb = document.getElementById(id);
+          if (cb) {
+            cb.addEventListener('change', function() {
+              self.statusFilter.inProgress = document.getElementById('filter-inProgress').checked;
+              self.statusFilter.thirdParty = document.getElementById('filter-thirdParty').checked;
+              self.statusFilter.done = document.getElementById('filter-done').checked;
+              TaskManager.setSetting('statusFilter', self.statusFilter);
+              self.render();
+              App.renderAll();
+            });
+          }
+        });
+
+        document.addEventListener('click', function() {
+          filterMenu.classList.remove('active');
+        });
+      }
+    },
+
+    _isTaskVisible: function(task) {
+      var children = TaskManager.getChildren(task.id);
+      if (children.length === 0) {
+        // 叶子任务：根据状态过滤
+        return this.statusFilter[task.status] !== false;
+      } else {
+        // 父任务：如果有任何可见子任务则显示
+        var self = this;
+        return children.some(function(child) {
+          return self._isTaskVisible(child);
+        });
+      }
     },
 
     render: function() {
@@ -1503,7 +1625,9 @@
       var html = '';
       var self = this;
       roots.forEach(function(task) {
-        html += self._renderNode(task, 0);
+        if (self._isTaskVisible(task)) {
+          html += self._renderNode(task, 0);
+        }
       });
       this.container.innerHTML = html;
       this._bindEvents();
@@ -1549,7 +1673,9 @@
         html += '<div class="tree-children' + (isCollapsed ? ' collapsed' : '') + '">';
         var self = this;
         children.forEach(function(child) {
-          html += self._renderNode(child, depth + 1);
+          if (self._isTaskVisible(child)) {
+            html += self._renderNode(child, depth + 1);
+          }
         });
         html += '</div>';
       }
@@ -2138,15 +2264,17 @@
     },
 
     _getLeafTasksInTreeOrder: function() {
-      // Get leaf tasks in DFS tree order
+      // Get leaf tasks in DFS tree order, filtered by status
       var result = [];
-      var self = this;
+      var filter = TreeView.statusFilter;
 
       function traverse(taskId) {
         var children = TaskManager.getChildren(taskId);
         if (children.length === 0) {
           var task = TaskManager.getTask(taskId);
-          if (task) result.push(task);
+          if (task && filter[task.status] !== false) {
+            result.push(task);
+          }
         } else {
           children.forEach(function(child) {
             traverse(child.id);
