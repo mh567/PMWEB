@@ -322,12 +322,15 @@
       margin-bottom: 4px;
     }
     .modal-field input,
-    .modal-field select {
+    .modal-field select,
+    .modal-field textarea {
       width: 100%;
       padding: 8px 10px;
       border: 1px solid var(--color-border);
       border-radius: 4px;
       font-size: 14px;
+      font-family: inherit;
+      resize: vertical;
     }
     .modal-actions {
       display: flex;
@@ -1447,7 +1450,7 @@
       this.open(
         '<div class="modal-title">' + title + '</div>'
         + '<div class="modal-field"><label>里程碑名称</label>'
-        + '<input type="text" id="modal-ms-name" value="' + _escapeHtml(name) + '" placeholder="请输入名称"></div>'
+        + '<textarea id="modal-ms-name" rows="3" placeholder="请输入名称">' + _escapeHtml(name) + '</textarea></div>'
         + '<div class="modal-field"><label>日期</label>'
         + '<input type="date" id="modal-ms-date" value="' + date + '"></div>'
         + '<div class="modal-field"><label>状态</label>'
