@@ -2400,8 +2400,16 @@
 
           var milestones = TaskManager.getMilestonesByTask(task.id);
           milestones.forEach(function(ms) {
-            // 里程碑放在单元格中间位置
-            var msX = self._dateToX(ms.date) + self.cellWidth / 2;
+            // 里程碑位置：日视图放在单元格中间，其他视图精确日期位置
+            var msX;
+            if (self.granularity === 'day') {
+              // 日视图：里程碑放在当天单元格中间
+              msX = self._dateToX(ms.date) + self.cellWidth / 2;
+            } else {
+              // 周/月视图：里程碑放在精确日期位置（当天中午12点）
+              var msNoon = new Date(_parseDate(ms.date).getTime() + 12 * 3600000);
+              msX = self._dateToX(DataStore.formatDate(msNoon));
+            }
             var msIcon = (ms.status === 'done') ? '○' : '□';
             var msClass = 'gantt-milestone' + (ms.status === 'done' ? ' done' : '');
             bodyHtml += '<div class="' + msClass + '" style="left:' + msX + 'px;top:' + (rowIndex * 36 + 4) + 'px;" data-milestone-id="' + ms.id + '" data-task-id="' + task.id + '" title="' + _escapeHtml(ms.name) + ' (' + ms.date + ')">' + msIcon + '</div>';
