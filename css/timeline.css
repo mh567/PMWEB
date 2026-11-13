@@ -1,0 +1,586 @@
+/* ================================================================
+   Timeline pane: 行模型驱动的时间轴
+   ================================================================ */
+.timeline-header-wrap {
+  height: var(--pane-header-height, 64px);
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.timeline-header {
+  display: flex;
+  flex-direction: column;
+  transform: translateX(0);
+  will-change: transform;
+}
+
+.timeline-header-row {
+  display: flex;
+  height: var(--timeline-header-row-height, 32px);
+}
+
+.timeline-header-parent {
+  background: var(--color-slate-mist);
+}
+
+.timeline-header-group {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-label);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  color: var(--color-slate);
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.timeline-header-cell {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-label);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--color-slate);
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.timeline-header-cell .weekday {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--color-slate-light);
+}
+
+.timeline-header-cell.weekend {
+  color: var(--color-slate-light);
+  background: var(--color-slate-mist);
+}
+
+.timeline-header-cell.weekend .weekday {
+  color: var(--color-slate-light);
+}
+
+.timeline-body {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  background: var(--color-surface);
+}
+
+.timeline-content {
+  position: relative;
+}
+
+/* 可视窗口行容器：与内容容器同尺寸，行继续按绝对行号定位 */
+.timeline-rows {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.timeline-row {
+  position: absolute;
+  left: 0;
+  display: flex;
+  box-sizing: border-box;
+  height: var(--row-height, 40px);
+  border-bottom: 1px solid #f1f5f9;
+  background: var(--color-surface);
+  transition: background var(--transition);
+}
+
+.timeline-row:hover,
+.timeline-row.hovered {
+  background: var(--color-slate-mist);
+}
+
+.timeline-row.selected {
+  background: var(--color-blue-tint);
+}
+
+.timeline-grid-cell {
+  flex: 0 0 auto;
+  height: 100%;
+  border-right: 1px solid #f1f5f9;
+}
+
+.timeline-grid-cell.weekend {
+  background: rgba(100, 116, 139, 0.035);
+}
+
+.timeline-body .gantt-bar {
+  position: absolute;
+  height: var(--timeline-bar-height, 20px);
+  top: var(--timeline-bar-top, 10px);
+  border-radius: 6px;
+  cursor: grab;
+  font-size: var(--text-label);
+  font-weight: 500;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  padding: 0 6px 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  min-width: 20px;
+  box-shadow: var(--shadow-rest);
+  transition:
+    transform var(--transition),
+    box-shadow var(--transition),
+    filter var(--transition);
+}
+
+.timeline-body .gantt-bar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 6px 0 0 6px;
+  background: transparent;
+}
+
+.timeline-body .gantt-bar:hover {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-hover);
+}
+
+.timeline-body .gantt-bar.status-todo {
+  opacity: 0.85;
+}
+
+.timeline-body .gantt-bar.status-todo::before {
+  background: var(--color-text-secondary, #94a3b8);
+}
+
+.timeline-body .gantt-bar.status-inProgress::before {
+  background: var(--color-action-blue);
+}
+
+.timeline-body .gantt-bar.status-thirdParty {
+  filter: saturate(0.7);
+}
+
+.timeline-body .gantt-bar.status-thirdParty::before {
+  background: var(--color-hint-violet);
+}
+
+.timeline-body .gantt-bar.status-done {
+  opacity: 0.45;
+  filter: grayscale(0.8);
+}
+
+.timeline-body .gantt-bar.status-done::before {
+  background: var(--color-confirm-green);
+}
+
+.timeline-body .gantt-bar.highlight {
+  filter: brightness(1.12);
+  box-shadow: 0 0 0 1px var(--color-action-blue), var(--shadow-hover);
+  z-index: 4;
+}
+
+.timeline-body .gantt-bar.selected {
+  box-shadow: 0 0 0 2px var(--color-action-blue), var(--shadow-hover);
+  z-index: 4;
+}
+
+.timeline-body .gantt-bar-label {
+  display: inline-block;
+  position: relative;
+  z-index: 1;
+  transition: margin-left 100ms ease-out;
+}
+
+.timeline-body .gantt-bar-progress {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 0;
+  background: rgba(255, 255, 255, 0.32);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* ================================================================
+   Dependency arrows：SVG overlay，不进入行模型，不改变行高
+   ================================================================ */
+.dep-arrows {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.dep-arrow-line {
+  fill: none;
+  stroke: var(--color-slate-light);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  transition: stroke var(--transition), stroke-width var(--transition);
+}
+
+.dep-arrow-head {
+  fill: var(--color-slate-light);
+  transition: fill var(--transition);
+}
+
+.dep-arrow-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 12;
+  stroke-linecap: round;
+  pointer-events: stroke;
+  cursor: pointer;
+}
+
+.dep-arrow.hovered .dep-arrow-line,
+.dep-arrow.selected .dep-arrow-line {
+  stroke: var(--color-action-blue);
+  stroke-width: 2;
+}
+
+.dep-arrow.hovered .dep-arrow-head,
+.dep-arrow.selected .dep-arrow-head {
+  fill: var(--color-action-blue);
+}
+
+.dep-arrow.hovered .dep-arrow-hit,
+.dep-arrow.selected .dep-arrow-hit {
+  cursor: pointer;
+}
+
+.dep-link-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+  margin-bottom: 16px;
+}
+
+.dep-link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-buttons);
+  background: var(--color-slate-mist);
+}
+
+.dep-link-text {
+  font-size: var(--text-body-sm);
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-error {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-inputs);
+  background: #fef2f2;
+  color: var(--color-danger);
+  font-size: var(--text-body-sm);
+}
+
+.modal-error[hidden] {
+  display: none;
+}
+
+.timeline-body .gantt-bar-dates {
+  opacity: 0.85;
+  margin-left: 4px;
+  font-size: var(--text-label);
+}
+
+.gantt-summary-bar {
+  position: absolute;
+  height: var(--timeline-summary-height, 12px);
+  top: var(--timeline-summary-top, 14px);
+  border-radius: 3px;
+  background: linear-gradient(90deg, #475569, #64748b);
+  box-shadow: var(--shadow-rest);
+  z-index: 3;
+}
+
+.gantt-summary-bar::before,
+.gantt-summary-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+.gantt-summary-bar::before {
+  left: 0;
+  border-width: 6px 0 6px 6px;
+  border-color: transparent transparent transparent #334155;
+}
+
+.gantt-summary-bar::after {
+  right: 0;
+  border-width: 6px 6px 6px 0;
+  border-color: transparent #334155 transparent transparent;
+}
+
+.gantt-summary-bar.highlight {
+  filter: brightness(1.15);
+  box-shadow: 0 0 0 1px var(--color-action-blue), var(--shadow-hover);
+}
+
+.gantt-summary-bar.selected {
+  box-shadow: 0 0 0 2px var(--color-action-blue), var(--shadow-hover);
+}
+
+.timeline-body .gantt-summary-bar.status-done {
+  opacity: 0.55;
+  filter: grayscale(0.7);
+}
+
+.timeline-body .gantt-summary-bar.status-done::before {
+  border-color: transparent transparent transparent #64748b;
+}
+
+.timeline-body .gantt-summary-bar.status-done::after {
+  border-color: transparent #64748b transparent transparent;
+}
+
+.gantt-summary-bar .gantt-summary-progress {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+
+/* ---- 关键路径：只描边，不改变条形位置与行高 ---- */
+.timeline-body .gantt-bar.critical,
+.timeline-body .gantt-summary-bar.critical {
+  outline: 2px solid var(--color-hint-violet);
+  outline-offset: 1px;
+}
+
+.timeline-body .gantt-bar.critical.selected,
+.timeline-body .gantt-bar.critical.highlight {
+  outline-color: var(--color-corporate-blue);
+}
+
+.timeline-body .gantt-bar.critical::before {
+  width: 4px;
+  background: var(--color-hint-violet);
+}
+
+
+.timeline-body .gantt-milestone {
+  position: absolute;
+  top: var(--timeline-milestone-top, 10px);
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  font-size: 16px;
+  z-index: 5;
+  transform: translateX(-10px);
+  color: var(--color-corporate-blue);
+  filter: drop-shadow(0 0 1px #ffffff) drop-shadow(0 0 1px #ffffff);
+  transition: transform var(--transition);
+}
+
+.timeline-body .gantt-milestone:hover {
+  transform: translateX(-10px) scale(1.2);
+}
+
+.timeline-body .gantt-milestone.done {
+  color: var(--color-confirm-green);
+}
+
+.gantt-today-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-corporate-blue);
+  opacity: 0.55;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* ---- 基线 ghost 条：低饱和度虚线，不拦截点击 ---- */
+.timeline-body .gantt-baseline-bar {
+  position: absolute;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(100, 116, 139, 0.22);
+  border: 1px dashed rgba(71, 85, 105, 0.55);
+  pointer-events: none;
+  z-index: 1;
+  transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+
+.timeline-body .gantt-baseline-bar.is-delayed {
+  background: rgba(220, 38, 38, 0.16);
+  border-color: rgba(220, 38, 38, 0.65);
+}
+
+.timeline-body .gantt-baseline-bar.is-advanced {
+  background: rgba(22, 163, 74, 0.16);
+  border-color: rgba(22, 163, 74, 0.65);
+}
+
+.timeline-body .gantt-baseline-bar.highlight {
+  background: rgba(100, 116, 139, 0.4);
+  box-shadow: 0 0 0 1px var(--color-action-blue);
+}
+
+.timeline-body .gantt-baseline-bar.selected {
+  background: rgba(100, 116, 139, 0.45);
+  box-shadow: 0 0 0 2px var(--color-action-blue);
+}
+
+.timeline-body .gantt-baseline-bar.selected.highlight {
+  box-shadow: 0 0 0 2px var(--color-action-blue), 0 0 0 1px var(--color-action-blue);
+}
+
+.gantt-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-slate);
+  font-size: var(--text-body-sm);
+}
+
+/* ================================================================
+   Drag feedback
+   ================================================================ */
+.gantt-drag-tooltip {
+  position: fixed;
+  background: var(--color-text);
+  color: #ffffff;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: var(--text-label);
+  pointer-events: none;
+  z-index: 100;
+  white-space: nowrap;
+  box-shadow: var(--shadow-hover);
+}
+
+.drag-ghost {
+  position: fixed;
+  opacity: 0.65;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.drag-ghost-bar {
+  height: 20px;
+  border-radius: 6px;
+  font-size: var(--text-label);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  box-shadow: var(--shadow-hover);
+}
+
+.drag-ghost-milestone {
+  font-size: 16px;
+  color: var(--color-corporate-blue);
+  filter: drop-shadow(0 0 1px #ffffff) drop-shadow(0 0 1px #ffffff);
+}
+
+.snap-line {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: var(--color-action-blue);
+  opacity: 0.6;
+  pointer-events: none;
+  z-index: 50;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-body .gantt-bar:hover,
+  .timeline-body .gantt-milestone:hover {
+    transform: none !important;
+  }
+}
+
+/* ================================================================
+   Gantt Zoom Controls (甘特图右上角缩放控件)
+   ================================================================ */
+.gantt-zoom-controls {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm, 4px);
+  padding: 2px 6px;
+  z-index: 10;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn-gantt-zoom {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--color-text);
+}
+
+.btn-gantt-zoom:hover:not(:disabled) {
+  background: var(--color-hover);
+}
+
+.btn-gantt-zoom:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.gantt-granularity-label {
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 18px;
+  text-align: center;
+  color: var(--color-text);
+}

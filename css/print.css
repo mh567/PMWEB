@@ -1,0 +1,175 @@
+/* ================================================================
+   PMWEB 打印与只读分享样式
+   ================================================================ */
+
+/* 只读横幅 */
+#readonly-banner {
+  display: none;
+  background: #fef3c7;
+  color: #92400e;
+  border-bottom: 1px solid #fcd34d;
+  padding: 8px 16px;
+  font-size: var(--text-body-sm);
+  align-items: center;
+  justify-content: space-between;
+  z-index: 100;
+}
+
+#readonly-banner.active {
+  display: flex;
+}
+
+#readonly-banner .banner-text {
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#readonly-banner .banner-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* 审计日志表格样式 */
+.audit-list-container {
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-inputs);
+  background: var(--color-surface);
+  margin-top: 8px;
+}
+
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-label);
+  text-align: left;
+}
+
+.audit-table th,
+.audit-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.audit-table th {
+  background: var(--color-slate-mist);
+  color: var(--color-slate);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.audit-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--radius-badges);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.audit-badge.create { background: #dcfce7; color: #15803d; }
+.audit-badge.update { background: #e0f2fe; color: #0369a1; }
+.audit-badge.delete { background: #fee2e2; color: #b91c1c; }
+.audit-badge.restore { background: #fef3c7; color: #b45309; }
+
+.audit-diff {
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--color-text);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 分享链接输入区 */
+.share-link-input-group {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.share-link-input-group input {
+  flex: 1;
+}
+
+/* ================================================================
+   打印专用样式 (@media print)
+   ================================================================ */
+@media print {
+  @page {
+    margin: 10mm;
+    size: landscape;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 12px !important;
+  }
+
+  /* 隐藏所有界面交互控件 */
+  #toolbar,
+  #status-bar,
+  #todos-sidebar,
+  #workbench-splitter,
+  .modal-overlay,
+  .context-menu,
+  .btn,
+  .filter-dropdown,
+  #readonly-banner .banner-actions {
+    display: none !important;
+  }
+
+  /* 只读横幅仅保留文字标题说明 */
+  #readonly-banner {
+    display: block !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 0 10px 0 !important;
+    font-size: 14px !important;
+    color: #333333 !important;
+  }
+
+  /* 展开工作台容器 */
+  #main-container {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  #workbench {
+    display: flex !important;
+    height: auto !important;
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  #grid-pane,
+  #timeline-pane {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  #grid-body,
+  #timeline-body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .grid-row,
+  .timeline-row {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    box-shadow: none !important;
+  }
+}

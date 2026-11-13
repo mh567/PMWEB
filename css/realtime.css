@@ -1,0 +1,74 @@
+/* ================================================================
+   PMWEB 实时协同与在线状态样式
+   ================================================================ */
+
+#collaborators-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+}
+
+.collaborator-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--color-action-blue);
+  border: 2px solid #ffffff;
+  box-shadow: var(--shadow-rest);
+  position: relative;
+  cursor: pointer;
+  transition: transform var(--transition);
+}
+
+.collaborator-avatar:hover {
+  transform: scale(1.1);
+  z-index: 10;
+}
+
+.collaborator-avatar .online-indicator {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-confirm-green);
+  border: 1.5px solid #ffffff;
+}
+
+.collaborators-count {
+  font-size: var(--text-label);
+  color: var(--color-slate);
+  margin-left: 4px;
+}
+
+/* 表格行协同编辑指示标签 */
+.grid-collaborator-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  background: #eff6ff;
+  color: var(--color-corporate-blue);
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-badges);
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 6px;
+}
+
+/* 实时连接状态标签提示 */
+.realtime-status-pill {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: var(--radius-badges);
+  background: #ecfdf5;
+  color: var(--color-confirm-green);
+}

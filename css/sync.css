@@ -1,0 +1,172 @@
+/* ================================================================
+   PMWEB 云端同步与协作样式 (PocketBase)
+   ================================================================ */
+
+.sync-status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.sync-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-slate-light);
+  transition: background var(--transition), transform var(--transition);
+}
+
+.sync-dot.offline {
+  background: var(--color-slate-light);
+}
+
+.sync-dot.synced,
+.sync-dot.idle {
+  background: var(--color-confirm-green);
+}
+
+.sync-dot.syncing {
+  background: var(--color-action-blue);
+  animation: sync-pulse 1.2s infinite ease-in-out;
+}
+
+.sync-dot.queued {
+  background: #f59e0b;
+}
+
+.sync-dot.error {
+  background: var(--color-danger);
+}
+
+@keyframes sync-pulse {
+  0% { transform: scale(0.9); opacity: 0.6; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.6; }
+}
+
+/* Modal styles for Sync */
+.sync-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sync-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-inputs);
+  padding: 14px 16px;
+  background: var(--color-slate-mist);
+}
+
+.sync-card-title {
+  font-size: var(--text-body-sm);
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sync-meta-grid {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  row-gap: 8px;
+  font-size: var(--text-body-sm);
+}
+
+.sync-meta-label {
+  color: var(--color-slate);
+}
+
+.sync-meta-value {
+  color: var(--color-text);
+  font-weight: 500;
+  word-break: break-all;
+}
+
+.sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-badges);
+  font-size: var(--text-label);
+  font-weight: 600;
+}
+
+.sync-badge.offline {
+  background: #f1f5f9;
+  color: var(--color-slate);
+}
+
+.sync-badge.synced,
+.sync-badge.idle {
+  background: var(--color-green-tint);
+  color: var(--color-confirm-green);
+}
+
+.sync-badge.syncing {
+  background: var(--color-blue-tint);
+  color: var(--color-action-blue);
+}
+
+.sync-badge.queued {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.sync-badge.error {
+  background: #fee2e2;
+  color: var(--color-danger);
+}
+
+.sync-form-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.sync-form-row .modal-field {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.sync-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.sync-alert {
+  padding: 10px 14px;
+  border-radius: var(--radius-inputs);
+  font-size: var(--text-body-sm);
+  display: none;
+}
+
+.sync-alert.active {
+  display: block;
+}
+
+.sync-alert.success {
+  background: var(--color-green-tint);
+  color: var(--color-confirm-green);
+  border: 1px solid #a7f3d0;
+}
+
+.sync-alert.error {
+  background: #fee2e2;
+  color: var(--color-danger);
+  border: 1px solid #fca5a5;
+}
+
+.sync-alert.info {
+  background: var(--color-blue-tint);
+  color: var(--color-corporate-blue);
+  border: 1px solid var(--color-blue-tint-strong);
+}

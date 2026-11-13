@@ -11,3 +11,6 @@ node_modules/
 
 # Superpowers tool generated files
 docs/superpowers/
+
+# Build output
+dist/
