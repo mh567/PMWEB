@@ -760,6 +760,184 @@ test('column_panel_outside_escape_cancel_focus: 外点/Esc/取消关闭且 Esc �
     '取消不得保存列名草稿');
 });
 
+// -------------------------------------------------------------
+// 场景 11: 单一搜索框与 ViewState 搜索条件同步
+// -------------------------------------------------------------
+function makeSearchWorkspace() {
+  var ws = makeWorkspace();
+  var project = ws.projects[0];
+  project.data.tasks = [
+    { id: 't-name', parentId: null, name: 'Alpha 需求', status: 'todo', startDate: '2026-11-11', endDate: '2026-11-15', plannedEndDate: '2026-11-15', order: 0, progress: 0, assignee: '', description: '' },
+    { id: 't-desc', parentId: null, name: 'Beta 需求', status: 'todo', startDate: '2026-11-11', endDate: '2026-11-15', plannedEndDate: '2026-11-15', order: 1, progress: 0, assignee: '', description: '包含 Alpha 说明' },
+    { id: 't-assignee', parentId: null, name: 'Gamma 需求', status: 'todo', startDate: '2026-11-11', endDate: '2026-11-15', plannedEndDate: '2026-11-15', order: 2, progress: 0, assignee: 'Alpha 负责人', description: '' },
+    { id: 't-none', parentId: null, name: '无关任务', status: 'todo', startDate: '2026-11-11', endDate: '2026-11-15', plannedEndDate: '2026-11-15', order: 3, progress: 0, assignee: '', description: '' }
+  ];
+  project.data.milestones = [];
+  return ws;
+}
+
+function searchRowKey(Workbench) {
+  return (Workbench._rows || []).map(function(row) { return row.task.id; }).sort().join(',');
+}
+
+test('single_task_search_input_in_toolbar: 工具栏与视图栏合计只允许一个任务搜索框', function() {
+  var env = setupAppEnvironment({ workspaceData: makeSearchWorkspace() });
+  env.App.init();
+  var doc = env.doc;
+
+  var inputs = doc.querySelectorAll('input[type="search"]');
+  assert.strictEqual(inputs.length, 1, '页面只允许存在一个任务搜索框');
+  assert.strictEqual(inputs[0].id, 'search-task', '唯一搜索框必须为主工具栏搜索框');
+
+  var viewsBar = doc.querySelector('.views-bar');
+  assert.ok(viewsBar, '视图栏必须存在');
+  assert.strictEqual(viewsBar.querySelector('input[type="search"]'), null, '视图栏不得再创建重复搜索框');
+});
+
+test('task_search_filters_name_description_and_assignee: 主搜索框真实过滤任务字段', function() {
+  var env = setupAppEnvironment({ workspaceData: makeSearchWorkspace() });
+  var App = env.App;
+  var doc = env.doc;
+  var Workbench = env.Workbench;
+  var ViewState = env.appEnv.get('ViewState');
+
+  App.init();
+  env.Workspace.activate(env.Workspace.data.projects[0].id);
+  App.renderAll();
+
+  var input = doc.getElementById('search-task');
+  assert.ok(input, '主工具栏搜索框必须存在');
+  assert.strictEqual(searchRowKey(Workbench), 't-assignee,t-desc,t-name,t-none', '初始展示全部任务');
+
+  input.value = 'alpha';
+  input.dispatchEvent({ type: 'input', bubbles: true });
+  assert.strictEqual(ViewState.view.filters.search, 'alpha', '输入必须写入 ViewState 搜索条件');
+  assert.strictEqual(searchRowKey(Workbench), 't-assignee,t-desc,t-name', '搜索命中名称、描述与负责人');
+
+  input.value = '说明';
+  input.dispatchEvent({ type: 'input', bubbles: true });
+  assert.strictEqual(searchRowKey(Workbench), 't-desc', '搜索必须命中描述');
+
+  input.value = '负责人';
+  input.dispatchEvent({ type: 'input', bubbles: true });
+  assert.strictEqual(searchRowKey(Workbench), 't-assignee', '搜索必须命中负责人');
+
+  input.value = '';
+  input.dispatchEvent({ type: 'input', bubbles: true });
+  assert.strictEqual(ViewState.view.filters.search, '', '清空输入必须清空搜索条件');
+  assert.strictEqual(searchRowKey(Workbench), 't-assignee,t-desc,t-name,t-none', '清空后恢复全部任务');
+});
+
+test('search_input_syncs_with_load_clear_and_save_view: 加载清除保存视图后输入框与状态一致', function() {
+  var env = setupAppEnvironment({ workspaceData: makeSearchWorkspace() });
+  var App = env.App;
+  var doc = env.doc;
+  var Workbench = env.Workbench;
+  var TaskManager = env.TaskManager;
+  var ViewState = env.appEnv.get('ViewState');
+
+  App.init();
+  env.Workspace.activate(env.Workspace.data.projects[0].id);
+  App.renderAll();
+
+  TaskManager.setSetting('views', [{
+    id: 'v-beta',
+    name: '只看 Beta',
+    filters: { search: 'beta' },
+    sort: { field: '', direction: 'asc' },
+    groupBy: 'none'
+  }]);
+
+  Workbench.loadView('v-beta');
+  var input = doc.getElementById('search-task');
+  assert.strictEqual(ViewState.view.filters.search, 'beta', '加载视图必须写入搜索条件');
+  assert.strictEqual(input.value, 'beta', '加载视图后搜索框必须显示视图中的搜索词');
+  assert.strictEqual(searchRowKey(Workbench), 't-desc', '加载视图后必须按搜索词过滤');
+
+  var clearBtn = doc.querySelector('[data-views-action="clear-filters"]');
+  assert.ok(clearBtn, '清除筛选按钮必须存在');
+  clearBtn.click();
+  assert.strictEqual(ViewState.view.filters.search, '', '清除筛选必须清空搜索条件');
+  assert.strictEqual(input.value, '', '清除筛选后搜索框必须同步清空');
+  assert.strictEqual(searchRowKey(Workbench), 't-assignee,t-desc,t-name,t-none', '清除筛选后必须恢复全部任务');
+
+  input.value = 'gamma';
+  input.dispatchEvent({ type: 'input', bubbles: true });
+  assert.strictEqual(ViewState.view.filters.search, 'gamma', '输入必须写入搜索条件');
+
+  Workbench.saveCurrentView();
+  var nameInput = doc.getElementById('modal-view-name');
+  assert.ok(nameInput, '保存视图弹窗必须包含名称输入框');
+  nameInput.value = 'Gamma 视图';
+  doc.getElementById('modal-view-save').click();
+
+  var saved = TaskManager.getSetting('views') || [];
+  var savedView = null;
+  saved.forEach(function(view) {
+    if (view && view.name === 'Gamma 视图') savedView = view;
+  });
+  assert.ok(savedView, '保存视图必须写入当前项目设置');
+  assert.strictEqual(savedView.filters.search, 'gamma', '保存视图必须包含当前搜索条件');
+  assert.strictEqual(input.value, 'gamma', '保存视图后搜索框必须与状态保持一致');
+});
+
+test('search_input_consistent_after_project_switch: 切项目后搜索框与 ViewState 保持一致', function() {
+  var env = setupAppEnvironment({ workspaceData: makeSearchWorkspace() });
+  var App = env.App;
+  var doc = env.doc;
+  var Workbench = env.Workbench;
+  var TaskManager = env.TaskManager;
+  var ViewState = env.appEnv.get('ViewState');
+
+  App.init();
+  env.Workspace.activate(env.Workspace.data.projects[0].id);
+  App.renderAll();
+
+  TaskManager.setSetting('views', [{
+    id: 'v-beta',
+    name: '只看 Beta',
+    filters: { search: 'beta' },
+    sort: { field: '', direction: 'asc' },
+    groupBy: 'none'
+  }]);
+  Workbench.loadView('v-beta');
+
+  var input = doc.getElementById('search-task');
+  assert.strictEqual(input.value, 'beta');
+
+  env.Workspace.activate(env.Workspace.data.projects[1].id);
+  App.renderAll();
+
+  assert.strictEqual(ViewState.view.filters.search, 'beta', '切项目后真实搜索条件必须保持');
+  assert.strictEqual(input.value, 'beta', '切项目后搜索框必须与真实搜索条件一致');
+  assert.strictEqual(searchRowKey(Workbench), '', '切换后的项目必须按同一搜索条件过滤');
+});
+
+test('search_input_safe_without_project: 无项目时搜索输入不崩溃且状态一致', function() {
+  var ws = makeWorkspace();
+  ws.projects = [];
+  ws.settings.lastProjectId = null;
+
+  var env = setupAppEnvironment({ workspaceData: ws });
+  var App = env.App;
+  var doc = env.doc;
+  var ViewState = env.appEnv.get('ViewState');
+
+  assert.doesNotThrow(function() { App.init(); }, '无项目启动不得崩溃');
+
+  var inputs = doc.querySelectorAll('input[type="search"]');
+  assert.strictEqual(inputs.length, 1, '无项目时仍只允许一个搜索框');
+  assert.strictEqual(ViewState.view.filters.search, '', '无项目时搜索条件为空');
+
+  var input = doc.getElementById('search-task');
+  assert.doesNotThrow(function() {
+    input.value = 'x';
+    input.dispatchEvent({ type: 'input', bubbles: true });
+  }, '无项目时输入搜索不得崩溃');
+  assert.strictEqual(ViewState.view.filters.search, 'x', '无项目时搜索条件仍写入 ViewState');
+  assert.strictEqual(input.value, 'x', '无项目时搜索框保持输入值');
+});
+
 // 执行本文件所有测试
 var failures = 0;
 tests.forEach(function(t) {

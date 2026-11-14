@@ -278,6 +278,7 @@ var Workbench = {
   // -- 行模型与渲染 --------------------------------------------------
 
   render: function() {
+    this._syncSearchInput();
     if (typeof RowModel === 'undefined' || typeof RowModel.build !== 'function') return this;
 
     var result = RowModel.build({
@@ -890,8 +891,7 @@ var Workbench = {
     bar.setAttribute('role', 'toolbar');
     bar.setAttribute('aria-label', '视图');
     bar.innerHTML =
-      '<input class="views-search" type="search" placeholder="搜索任务" aria-label="搜索任务">'
-      + '<div class="views-nav">'
+      '<div class="views-nav">'
       + '<button type="button" class="views-btn" data-views-action="filter" aria-haspopup="true" aria-expanded="false">筛选</button>'
       + '<div class="views-filter-panel" hidden>'
       + '<label class="views-field"><span>状态</span><select data-view-filter="status">'
@@ -948,12 +948,6 @@ var Workbench = {
 
     this._viewsBar = bar;
     var self = this;
-
-    bar.addEventListener('input', function(e) {
-      if (!e.target || !e.target.classList || !e.target.classList.contains('views-search')) return;
-      ViewState.view.filters.search = e.target.value;
-      self._applyViewChange();
-    });
 
     bar.addEventListener('change', function(e) {
       var target = e.target;
@@ -1054,8 +1048,7 @@ var Workbench = {
     var view = ViewState.view;
     var filters = view.filters || {};
 
-    var search = this._viewsBar.querySelector('.views-search');
-    if (search && search.value !== filters.search) search.value = filters.search || '';
+    this._syncSearchInput();
 
     this._setControlValue('[data-view-control="groupBy"]', view.groupBy || 'none');
     this._setControlValue('[data-view-control="sortField"]', (view.sort && view.sort.field) || '');
@@ -1080,6 +1073,16 @@ var Workbench = {
     var remove = this._viewsBar.querySelector('[data-views-action="delete"]');
     if (rename) rename.disabled = !hasActive;
     if (remove) remove.disabled = !hasActive;
+  },
+
+  _syncSearchInput: function() {
+    var doc = typeof document !== 'undefined' ? document : null;
+    if (!doc || typeof doc.getElementById !== 'function') return;
+    var input = doc.getElementById('search-task') || doc.getElementById('search');
+    if (!input) return;
+    var filters = ViewState.view && ViewState.view.filters ? ViewState.view.filters : {};
+    var value = typeof filters.search === 'string' ? filters.search : '';
+    if (input.value !== value) input.value = value;
   },
 
   _setControlValue: function(selector, value) {

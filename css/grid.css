@@ -512,24 +512,6 @@
   min-height: 28px;
 }
 
-.views-search {
-  width: 132px;
-  min-width: 80px;
-  height: 24px;
-  padding: 0 8px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-buttons, 8px);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--text-label);
-}
-
-.views-search:focus {
-  outline: none;
-  border-color: var(--color-action-blue);
-  box-shadow: 0 0 0 2px var(--color-blue-tint-strong);
-}
-
 .views-btn,
 .views-select {
   height: 24px;
@@ -668,10 +650,6 @@
 }
 
 @media (max-width: 1080px) {
-  .views-search {
-    width: 96px;
-  }
-
   .views-select {
     max-width: 104px;
   }
